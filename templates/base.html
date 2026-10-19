@@ -38,6 +38,7 @@
 </head>
 
 <body class="bg-[#faf8ff] font-sans text-slate-900 antialiased min-h-screen flex">
+  {% set active_person_id = selected_person.person_id if selected_person else (people[0].person_id if people else none) %}
 
   <!-- ====================================================================== -->
   <!-- 1. LEFT DARK SIDEBAR (Only displayed when authenticated/logged in)     -->
@@ -72,7 +73,7 @@
       <nav class="p-3 space-y-1">
         <!-- Dashboard -->
         {% set isDash = (page == 'dashboard') %}
-        <a href="{{ url_for('dashboard') }}"
+        <a href="{{ url_for('dashboard', person_id=active_person_id) }}"
            class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all
                   {% if isDash %}bg-sky-600 text-white shadow-sm{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/60{% endif %}">
           <span class="material-symbols-outlined text-base {% if isDash %}text-white{% else %}text-slate-400{% endif %}">grid_view</span>
@@ -80,14 +81,14 @@
         </a>
 
         <!-- Trend Graph -->
-        <a href="{{ url_for('dashboard') }}#trend-section"
+        <a href="{{ url_for('dashboard', person_id=active_person_id) }}#trend-section"
            class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
           <span class="material-symbols-outlined text-base text-slate-400">show_chart</span>
           <span>Trend Graph</span>
         </a>
 
         <!-- Medication Tracker -->
-        <a href="{{ url_for('dashboard') }}#medication-section"
+        <a href="{{ url_for('dashboard', person_id=active_person_id) }}#medication-section"
            class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
           <div class="flex items-center gap-3">
             <span class="material-symbols-outlined text-base text-slate-400">medication</span>
@@ -100,7 +101,7 @@
 
         <!-- History & Logs -->
         {% set isHist = (page == 'history') %}
-        <a href="{{ url_for('history') }}"
+        <a href="{{ url_for('history', person_id=active_person_id) }}"
            class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all
                   {% if isHist %}bg-sky-600 text-white shadow-sm{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/60{% endif %}">
           <span class="material-symbols-outlined text-base {% if isHist %}text-white{% else %}text-slate-400{% endif %}">history</span>
@@ -108,7 +109,7 @@
         </a>
 
         <!-- AI Health Advisor (with Gemini badge) -->
-        <a href="{{ url_for('dashboard') }}#advisor-section"
+        <a href="{{ url_for('dashboard', person_id=active_person_id) }}#advisor-section"
            class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
           <div class="flex items-center gap-3">
             <span class="material-symbols-outlined text-base text-slate-400">auto_awesome</span>
@@ -160,6 +161,10 @@
         <select id="patientSelect"
           {% if patient_detail_view|default(false) %}
           onchange="window.location.href='/patient/' + this.value"
+              {% elif page == 'history' %}
+              onchange="window.location.href='/history?person_id=' + this.value"
+              {% elif page == 'add_record' %}
+              onchange="window.location.href='/add-record?person_id=' + this.value"
           {% else %}
                 onchange="window.location.href='/dashboard?person_id=' + this.value"
           {% endif %}
@@ -198,7 +203,7 @@
         {% endif %}
 
         <!-- Quick Log BP Button -->
-        <a href="{{ url_for('add_record') }}"
+        <a href="{{ url_for('add_record', person_id=active_person_id) }}"
            class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-sky-700 hover:bg-sky-800 text-white text-xs font-bold shadow-xs transition-all">
           <span class="material-symbols-outlined text-sm">add_circle</span>
           <span>Log BP</span>

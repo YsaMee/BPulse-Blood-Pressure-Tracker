@@ -10,7 +10,7 @@
     </p>
   </div>
 
-  <form method="POST" action="{{ url_for('add_record') }}"
+  <form method="POST" action="{{ url_for('add_record', person_id=selected_person.person_id if selected_person else none) }}"
         class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
     <!-- LEFT: FORM -->
@@ -24,8 +24,9 @@
             <label class="font-label-md text-on-surface block mb-1.5 font-semibold">Patient Name *</label>
             <input list="existing_people" name="person_name" required
                    placeholder="e.g. John Doe"
-                   value="{{ people[0].get_name() if people else '' }}"
+                       value="{{ selected_person.get_name() if selected_person else '' }}"
                    class="w-full bg-surface-container-low rounded-xl py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-primary text-sm font-medium"/>
+                     {% if selected_person %}<input type="hidden" name="person_id" value="{{ selected_person.person_id }}"/>{% endif %}
             <datalist id="existing_people">
               {% for p in people %}
                 <option value="{{ p.get_name() }}"></option>
@@ -83,7 +84,7 @@
       </section>
 
       <div class="flex items-center justify-end gap-3">
-        <a href="{{ url_for('dashboard') }}"
+        <a href="{{ url_for('dashboard', person_id=selected_person.person_id if selected_person else none) }}"
            class="px-5 py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high font-label-md transition-colors text-xs font-semibold">
           Cancel
         </a>

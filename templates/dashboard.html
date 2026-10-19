@@ -17,8 +17,8 @@
     {% endif %}
   {% endfor %}
   {% set normal_count = normal_recs|length %}
-  {% set normal_percent = (normal_count / total_recs * 100)|round|int if total_recs > 0 else 13 %}
-  {% set avg_map = ((2 * avg_dia + avg_sys) / 3)|round|int if (avg_dia and avg_sys) else 94 %}
+  {% set normal_percent = (normal_count / total_recs * 100)|round|int if total_recs > 0 else 0 %}
+  {% set avg_map = ((2 * avg_dia + avg_sys) / 3)|round|int if total_recs > 0 else none %}
 
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
     
@@ -30,16 +30,16 @@
       </div>
       <div class="mt-2 flex items-baseline gap-1">
         <span class="text-2xl font-extrabold text-slate-900">
-          {% if latest %}{{ latest.get_systolic() }}/{{ latest.get_diastolic() }}{% else %}124/83{% endif %}
+          {% if latest %}{{ latest.get_systolic() }}/{{ latest.get_diastolic() }}{% else %}—{% endif %}
         </span>
         <span class="text-xs text-slate-400">mmHg</span>
       </div>
       <div class="mt-1 flex items-center justify-between text-[11px]">
         <span class="text-slate-500">
-          {% if latest %}{{ latest.get_date() }}{% else %}2026-10-02{% endif %}
+          {% if latest %}{{ latest.get_date() }}{% else %}No readings{% endif %}
         </span>
         <span class="font-semibold text-sky-700">
-          {% if latest %}{{ latest.get_bp_category() }}{% else %}Stage 1 Hypertension{% endif %}
+          {% if latest %}{{ latest.get_bp_category() }}{% else %}—{% endif %}
         </span>
       </div>
     </div>
@@ -52,12 +52,12 @@
       </div>
       <div class="mt-2 flex items-baseline gap-1">
         <span class="text-2xl font-extrabold text-slate-900">
-          {{ avg_sys|int if avg_sys else 124 }}/{{ avg_dia|int if avg_dia else 79 }}
+          {% if records_month %}{{ avg_sys|int }}/{{ avg_dia|int }}{% else %}—{% endif %}
         </span>
         <span class="text-xs text-slate-400">mmHg</span>
       </div>
       <div class="mt-1 text-[11px] text-teal-700 font-medium">
-        MAP ~{{ avg_map }} mmHg (Vascular tone)
+        {% if avg_map is not none %}MAP ~{{ avg_map }} mmHg (Vascular tone){% else %}No readings in the past 30 days{% endif %}
       </div>
     </div>
 
@@ -69,12 +69,12 @@
       </div>
       <div class="mt-2 flex items-baseline gap-1">
         <span class="text-2xl font-extrabold text-slate-900">
-          {% if latest and latest.get_pulse_rate() %}{{ latest.get_pulse_rate() }}{% else %}69{% endif %}
+          {% if latest and latest.get_pulse_rate() is number %}{{ latest.get_pulse_rate() }}{% else %}—{% endif %}
         </span>
         <span class="text-xs text-slate-400">bpm</span>
       </div>
       <div class="mt-1 text-[11px] text-slate-500">
-        Across {{ total_recs if total_recs > 0 else 15 }} historical readings
+        Across {{ total_recs }} historical readings
       </div>
     </div>
 
@@ -91,7 +91,7 @@
         <span class="text-xs text-slate-400">in target</span>
       </div>
       <div class="mt-1 text-[11px] text-slate-500">
-        {{ normal_count if normal_count > 0 else 2 }} optimal measurements
+        {{ normal_count }} optimal measurements
       </div>
     </div>
 
@@ -136,16 +136,16 @@
       <div class="bg-slate-50/80 rounded-xl p-3 border border-slate-100">
         <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">Average BP</span>
         <div class="flex items-baseline gap-1 mt-0.5">
-          <span id="ribbon-bp" class="text-lg font-bold text-slate-900">124/80</span>
+          <span id="ribbon-bp" class="text-lg font-bold text-slate-900">—</span>
           <span class="text-[11px] text-slate-500">mmHg</span>
         </div>
-        <span id="ribbon-map" class="text-[10px] text-teal-700 font-medium mt-0.5 block">MAP ~95 mmHg</span>
+        <span id="ribbon-map" class="text-[10px] text-teal-700 font-medium mt-0.5 block">MAP —</span>
       </div>
 
       <div class="bg-slate-50/80 rounded-xl p-3 border border-slate-100">
         <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">Average Pulse</span>
         <div class="flex items-baseline gap-1 mt-0.5">
-          <span id="ribbon-pulse" class="text-lg font-bold text-slate-900">70</span>
+          <span id="ribbon-pulse" class="text-lg font-bold text-slate-900">—</span>
           <span class="text-[11px] text-slate-500">bpm</span>
         </div>
         <span class="text-[10px] text-slate-500 block mt-0.5">Resting heart rate</span>
@@ -154,8 +154,8 @@
       <div class="bg-slate-50/80 rounded-xl p-3 border border-slate-100">
         <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">Normal Range</span>
         <div class="flex items-baseline gap-1 mt-0.5">
-          <span id="ribbon-normal" class="text-lg font-bold text-emerald-600">13%</span>
-          <span id="ribbon-normal-sub" class="text-[11px] text-slate-500">(1/8)</span>
+          <span id="ribbon-normal" class="text-lg font-bold text-emerald-600">0%</span>
+          <span id="ribbon-normal-sub" class="text-[11px] text-slate-500">(0/0)</span>
         </div>
         <span class="text-[10px] text-slate-500 block mt-0.5">&lt; 120/80 mmHg</span>
       </div>
@@ -163,9 +163,9 @@
       <div class="bg-slate-50/80 rounded-xl p-3 border border-slate-100">
         <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">Trajectory</span>
         <div class="flex items-center gap-1.5 mt-0.5">
-          <span class="material-symbols-outlined text-sm text-amber-600">trending_up</span>
-          <span class="text-sm font-bold text-amber-700">+5 mmHg</span>
-          <span class="text-[11px] text-amber-600">higher</span>
+          <span id="ribbon-trajectory-icon" class="material-symbols-outlined text-sm text-slate-400">trending_flat</span>
+          <span id="ribbon-trajectory" class="text-sm font-bold text-slate-500">—</span>
+          <span id="ribbon-trajectory-label" class="text-[11px] text-slate-500">No readings</span>
         </div>
         <span class="text-[10px] text-slate-500 block mt-0.5">vs earlier readings</span>
       </div>
@@ -178,26 +178,26 @@
       <div id="hoverTooltip"
            class="absolute hidden pointer-events-none z-20 bg-slate-950/95 backdrop-blur-md text-white text-xs rounded-xl p-3 shadow-xl border border-slate-700/80 transition-opacity duration-150 transform -translate-x-1/2 -translate-y-full mb-3 min-w-[190px]">
         <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-1.5 mb-1.5">
-          <span id="tt-date" class="text-[11px] text-slate-300 font-medium">Oct 02, 2026</span>
-          <span id="tt-time" class="text-[10px] text-slate-400 font-mono">08:15 AM</span>
+          <span id="tt-date" class="text-[11px] text-slate-300 font-medium">—</span>
+          <span id="tt-time" class="text-[10px] text-slate-400 font-mono">—</span>
         </div>
         <div class="flex items-baseline justify-between mb-1">
           <div class="flex items-baseline gap-1">
-            <span id="tt-sys" class="text-sky-400 font-extrabold text-base">124</span>
+            <span id="tt-sys" class="text-sky-400 font-extrabold text-base">—</span>
             <span class="text-slate-400">/</span>
-            <span id="tt-dia" class="text-teal-400 font-extrabold text-base">83</span>
+            <span id="tt-dia" class="text-teal-400 font-extrabold text-base">—</span>
             <span class="text-slate-400 text-[10px] ml-0.5">mmHg</span>
           </div>
           <div class="text-[11px] text-rose-300 flex items-center gap-0.5">
             <span class="material-symbols-outlined text-xs">favorite</span>
-            <span id="tt-pulse">69</span> bpm
+            <span id="tt-pulse">—</span> bpm
           </div>
         </div>
         <div class="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-slate-800/80 text-[10px]">
-          <span id="tt-cat" class="px-2 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-            Stage 1 Hypertension
+          <span id="tt-cat" class="px-2 py-0.5 rounded-full font-bold bg-slate-700 text-slate-300 border border-slate-600">
+            No reading
           </span>
-          <span id="tt-notes" class="text-slate-400 italic truncate max-w-[100px]">Routine check</span>
+          <span id="tt-notes" class="text-slate-400 italic truncate max-w-[100px]">—</span>
         </div>
       </div>
 
@@ -251,13 +251,6 @@
 
         <!-- X-Axis Dates -->
         <g id="chartXAxis" fill="#64748b" font-size="8.5" text-anchor="middle">
-          <text x="55" y="255">Sep 25</text>
-          <text x="170" y="255">Sep 26</text>
-          <text x="290" y="255">Sep 27</text>
-          <text x="410" y="255">Sep 29</text>
-          <text x="530" y="255">Sep 30</text>
-          <text x="650" y="255">Oct 01</text>
-          <text x="725" y="255">Oct 02</text>
         </g>
       </svg>
     </div>
@@ -265,21 +258,21 @@
     <!-- Active Hover Ribbon Bar at the bottom of the trend chart -->
     <div id="bottomHoverRibbon" class="bg-slate-900 text-white rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md mt-4 transition-all">
       <div class="flex items-center gap-3 text-xs flex-wrap font-medium">
-        <span id="ribbon-read-time" class="text-slate-300 font-semibold">Sep 26, 2026 at 08:15 AM</span>
+        <span id="ribbon-read-time" class="text-slate-300 font-semibold">{% if latest %}{{ latest.get_date() }} at {{ latest.get_time() }}{% else %}No reading selected{% endif %}</span>
         <span class="text-slate-600 hidden sm:inline">|</span>
         <div class="flex items-center gap-1.5">
-          <span id="ribbon-read-sys" class="text-sky-400 font-extrabold text-sm">128</span>
+          <span id="ribbon-read-sys" class="text-sky-400 font-extrabold text-sm">{{ latest.get_systolic() if latest else '—' }}</span>
           <span class="text-slate-400 font-normal"> / </span>
-          <span id="ribbon-read-dia" class="text-teal-400 font-extrabold text-sm">82</span>
+          <span id="ribbon-read-dia" class="text-teal-400 font-extrabold text-sm">{{ latest.get_diastolic() if latest else '—' }}</span>
           <span class="text-slate-400 text-[11px] ml-0.5">mmHg</span>
         </div>
         <span class="text-slate-600 hidden sm:inline">|</span>
-        <span class="text-rose-300">Pulse: <strong id="ribbon-read-pulse">71 bpm</strong></span>
+        <span class="text-rose-300">Pulse: <strong id="ribbon-read-pulse">{{ latest.get_pulse_rate() if latest else '—' }}</strong></span>
       </div>
 
       <div class="flex items-center gap-2">
-        <span id="ribbon-read-cat" class="bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-xs font-bold shadow-2xs">
-          Stage 1 Hypertension
+        <span id="ribbon-read-cat" class="bg-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold shadow-2xs">
+          {{ latest.get_bp_category() if latest else 'No reading' }}
         </span>
         <a href="#advisor-section"
            class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-xs transition-all">
@@ -532,7 +525,7 @@
         <h3 class="text-base font-bold text-slate-900 tracking-tight">Recent Blood Pressure Logs</h3>
         <p class="text-xs text-slate-500 mt-0.5">Color-coded American Heart Association classifications.</p>
       </div>
-      <a href="{{ url_for('history') }}" class="text-xs font-bold text-sky-700 hover:text-sky-800">
+      <a href="{{ url_for('history', person_id=curr_p.person_id if curr_p else none) }}" class="text-xs font-bold text-sky-700 hover:text-sky-800">
         View All History &rarr;
       </a>
     </div>
@@ -614,7 +607,7 @@
           </div>
           <p class="text-xs text-slate-300 mt-0.5">
             Personalized guidance for <strong class="text-white">{{ advice_person or (curr_p.get_name() if curr_p else 'Patient') }}</strong>
-            &bull; Reading: <span class="text-sky-300 font-semibold">{{ advice_reading or (latest.get_summary() if latest else '124/83 mmHg') }}</span>
+            &bull; Reading: <span class="text-sky-300 font-semibold">{{ advice_reading or (latest.get_summary() if latest else 'No reading available') }}</span>
           </p>
         </div>
       </div>
@@ -644,7 +637,7 @@
     <!-- Clinical Summary Text -->
     <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-700/60 mb-5">
       <p class="text-sm text-slate-100 leading-relaxed font-medium">
-        {{ advice.summary if advice and advice.summary else 'Your recent reading reflects Stage 1 Hypertension. Early dietary sodium moderation, consistent hydration, and structured daily walking can restore arterial balance.' }}
+        {{ advice.summary if advice and advice.summary else ('Log a blood pressure reading to receive personalized guidance.' if not latest else 'Review your latest reading and discuss any concerns with a healthcare professional.') }}
       </p>
     </div>
 
@@ -745,7 +738,7 @@
       ({{ curr_p.get_age() if curr_p else 55 }}y)
     </span>
     <span class="font-semibold text-sky-700 bg-white px-2 py-0.5 rounded-md border border-slate-200 shrink-0">
-      Latest: {{ latest.get_summary() if latest else '124/83' }}
+      Latest: {{ latest.get_summary() if latest else 'No reading available' }}
     </span>
   </div>
 
@@ -761,7 +754,7 @@
           Hello <strong>{{ curr_p.get_name() if curr_p else 'there' }}</strong>! I'm <strong>B-Pal</strong>, your personal cardiovascular companion.
         </p>
         <p class="text-slate-600">
-          Your current blood pressure is logged at <strong class="text-slate-900">{{ latest.get_summary() if latest else '124/83 mmHg' }}</strong>. How can I help support your heart health today?
+          {% if latest %}Your current blood pressure is logged at <strong class="text-slate-900">{{ latest.get_summary() }}</strong>. How can I help support your heart health today?{% else %}Log a reading to start a conversation about your blood pressure trends.{% endif %}
         </p>
       </div>
     </div>
@@ -907,6 +900,7 @@
 
   // 2. View Switcher: Week vs Month
   function setTimeframe(mode) {
+    const points = dashboardChartData[mode];
     renderTrendChart(mode);
     const btnWeek = document.getElementById('btn-week');
     const btnMonth = document.getElementById('btn-month');
@@ -915,23 +909,74 @@
     const rPulse = document.getElementById('ribbon-pulse');
     const rNorm = document.getElementById('ribbon-normal');
     const rNormSub = document.getElementById('ribbon-normal-sub');
+    const rTrajectory = document.getElementById('ribbon-trajectory');
+    const rTrajectoryLabel = document.getElementById('ribbon-trajectory-label');
+    const rTrajectoryIcon = document.getElementById('ribbon-trajectory-icon');
+
+    if (points.length === 0) {
+      if (rBp) rBp.innerText = '—';
+      if (rMap) rMap.innerText = 'MAP —';
+      if (rPulse) rPulse.innerText = '—';
+      if (rNorm) rNorm.innerText = '0%';
+      if (rNormSub) rNormSub.innerText = '(0/0)';
+      if (rTrajectory) rTrajectory.innerText = '—';
+      if (rTrajectoryLabel) rTrajectoryLabel.innerText = 'No readings';
+      if (rTrajectoryIcon) rTrajectoryIcon.textContent = 'trending_flat';
+    } else {
+      const average = function (values) {
+        return values.reduce(function (sum, value) { return sum + value; }, 0) / values.length;
+      };
+      const averageSystolic = average(points.map(function (point) { return point.systolic; }));
+      const averageDiastolic = average(points.map(function (point) { return point.diastolic; }));
+      const pulseValues = points.map(function (point) { return point.pulse; })
+        .filter(function (pulse) { return typeof pulse === 'number'; });
+      const normalCount = points.filter(function (point) {
+        return point.systolic < 120 && point.diastolic < 80;
+      }).length;
+
+      if (rBp) rBp.innerText = Math.round(averageSystolic) + '/' + Math.round(averageDiastolic);
+      if (rMap) rMap.innerText = 'MAP ~' + Math.round((averageSystolic + 2 * averageDiastolic) / 3) + ' mmHg';
+      if (rPulse) rPulse.innerText = pulseValues.length ? Math.round(average(pulseValues)) : '—';
+      if (rNorm) rNorm.innerText = Math.round(normalCount / points.length * 100) + '%';
+      if (rNormSub) rNormSub.innerText = '(' + normalCount + '/' + points.length + ')';
+
+      if (points.length < 2) {
+        if (rTrajectory) rTrajectory.innerText = '—';
+        if (rTrajectoryLabel) rTrajectoryLabel.innerText = 'Need more readings';
+        if (rTrajectoryIcon) rTrajectoryIcon.textContent = 'trending_flat';
+      } else {
+        const splitIndex = Math.floor(points.length / 2);
+        const change = Math.round(
+          average(points.slice(splitIndex).map(function (point) { return point.systolic; })) -
+          average(points.slice(0, splitIndex).map(function (point) { return point.systolic; }))
+        );
+        if (rTrajectory) {
+          rTrajectory.innerText = (change > 0 ? '+' : '') + change + ' mmHg';
+          rTrajectory.className = change > 0
+            ? 'text-sm font-bold text-amber-700'
+            : 'text-sm font-bold text-emerald-700';
+        }
+        if (rTrajectoryLabel) {
+          rTrajectoryLabel.innerText = change > 0 ? 'higher' : (change < 0 ? 'lower' : 'unchanged');
+          rTrajectoryLabel.className = change > 0
+            ? 'text-[11px] text-amber-600'
+            : 'text-[11px] text-emerald-600';
+        }
+        if (rTrajectoryIcon) {
+          rTrajectoryIcon.textContent = change > 0 ? 'trending_up' : (change < 0 ? 'trending_down' : 'trending_flat');
+          rTrajectoryIcon.className = change > 0
+            ? 'material-symbols-outlined text-sm text-amber-600'
+            : 'material-symbols-outlined text-sm text-emerald-600';
+        }
+      }
+    }
 
     if (mode === 'week') {
       btnWeek.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-sky-700 shadow-xs';
       btnMonth.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-600 hover:text-slate-900';
-      if (rBp) rBp.innerText = '124/80';
-      if (rMap) rMap.innerText = 'MAP ~95 mmHg';
-      if (rPulse) rPulse.innerText = '70';
-      if (rNorm) rNorm.innerText = '13%';
-      if (rNormSub) rNormSub.innerText = '(1/8)';
     } else {
       btnMonth.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-sky-700 shadow-xs';
       btnWeek.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-600 hover:text-slate-900';
-      if (rBp) rBp.innerText = '124/79';
-      if (rMap) rMap.innerText = 'MAP ~94 mmHg';
-      if (rPulse) rPulse.innerText = '69';
-      if (rNorm) rNorm.innerText = '13%';
-      if (rNormSub) rNormSub.innerText = '(2/15)';
     }
   }
 
@@ -942,7 +987,7 @@
     const svg = document.getElementById('trendSvg');
     const guideLine = document.getElementById('hoverGuideLine');
     const pointLayer = document.getElementById('interactivePoints');
-    renderTrendChart('week');
+    setTimeframe('week');
 
     // Bottom ribbon elements
     const ribbonTime = document.getElementById('ribbon-read-time');

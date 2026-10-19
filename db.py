@@ -1,6 +1,6 @@
 # db.py — Dual-Engine (Supabase with Local JSON fallback)
 import os
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, time
 from dotenv import load_dotenv
 import store
 
@@ -81,36 +81,11 @@ def get_people(user_id):
         try:
             res = (supabase.table("people")
                    .select("*").eq("user_id", str(user_id)).order("name").execute())
-            if res.data and len(res.data) > 0:
-                return res.data
-            else:
-                # Automatically seed the 3 dummy patients so any new Supabase account can access them
-                for d_name in ["John Doe", "Maria Santos", "Robert Chen"]:
-                    try:
-                        supabase.table("people").insert({"user_id": str(user_id), "name": d_name}).execute()
-                    except Exception:
-                        pass
-                res2 = (supabase.table("people")
-                        .select("*").eq("user_id", str(user_id)).order("name").execute())
-                if res2.data:
-                    john = next((p for p in res2.data if p.get("name") == "John Doe"), None)
-                    if john:
-                        _seed_supabase_records(john.get("id"))
-                    return res2.data
+            return res.data or []
         except Exception:
             pass
     # Fallback to local JSON store
-    local_people = store.load_all_people()
-    if not local_people:
-        # Pre-seed all 3 dummy patients
-        from person import Person
-        p1 = Person(person_id=1, name="John Doe", user_id=1)
-        p2 = Person(person_id=2, name="Maria Santos", user_id=1)
-        p3 = Person(person_id=3, name="Robert Chen", user_id=1)
-        store.save_user_people(1, [p1, p2, p3])
-        _seed_local_records()
-        return [p1.to_dict(), p2.to_dict(), p3.to_dict()]
-    return [p.to_dict() for p in local_people]
+    return [p.to_dict() for p in store.load_people(user_id)]
 
 
 def create_person(user_id, name, age=45, gender="Unspecified"):
@@ -178,11 +153,6 @@ def get_records_for_user(user_id):
 
     # Local fallback
     records = store.load_records(person_ids)
-    if not records:
-        # Generate initial seed data for local store
-        _seed_local_records()
-        records = store.load_records(person_ids)
-
     return [r.to_dict() for r in records]
 
 
@@ -239,18 +209,35 @@ def create_record(person_id, systolic, diastolic, pulse_rate, notes, date_val, t
         record_time=t,
     )
     all_recs.append(rec)
-    store.save_user_records([int(person_id)], all_recs)
+    person_records = [r for r in all_recs if r.person_id == int(person_id)]
+    store.save_user_records([int(person_id)], person_records)
     return payload
 
 
-def delete_record(record_id):
+def delete_record(record_id, person_id=None):
     if use_supabase and supabase:
         try:
-            supabase.table("records").delete().eq("id", record_id).execute()
+            query = supabase.table("records").delete().eq("id", record_id)
+            if person_id is not None:
+                query = query.eq("person_id", person_id)
+            query.execute()
         except Exception:
             pass
-    all_recs = [r for r in store.load_all_records() if r.record_id != int(record_id)]
-    store.save_user_records([], all_recs)
+    all_recs = store.load_all_records()
+    deleted_record = next(
+        (
+            r for r in all_recs
+            if r.record_id == int(record_id)
+            and (person_id is None or r.person_id == int(person_id))
+        ),
+        None,
+    )
+    if deleted_record:
+        person_records = [
+            r for r in all_recs
+            if r.person_id == deleted_record.person_id and r.record_id != int(record_id)
+        ]
+        store.save_user_records([deleted_record.person_id], person_records)
 
 
 # ==========================================
@@ -337,53 +324,6 @@ class SupabasePerson:
 
 def get_people_objects(user_id):
     return [SupabasePerson(r) for r in get_people(user_id)]
-
-
-def _seed_supabase_records(person_id):
-    """Seeds initial 7-day readings for John Doe into Supabase so newly registered accounts have immediate charts."""
-    if not (use_supabase and supabase and person_id):
-        return
-    today = date.today()
-    sample_records = [
-        {"person_id": person_id, "systolic": 122, "diastolic": 79, "pulse_rate": 72, "notes": "Morning reading", "date": str(today - timedelta(days=6)), "time": "08:15:00"},
-        {"person_id": person_id, "systolic": 128, "diastolic": 82, "pulse_rate": 74, "notes": "Post-walk check", "date": str(today - timedelta(days=5)), "time": "18:40:00"},
-        {"person_id": person_id, "systolic": 134, "diastolic": 84, "pulse_rate": 78, "notes": "Busy workday reading", "date": str(today - timedelta(days=4)), "time": "14:10:00"},
-        {"person_id": person_id, "systolic": 125, "diastolic": 80, "pulse_rate": 70, "notes": "Relaxed morning", "date": str(today - timedelta(days=3)), "time": "08:00:00"},
-        {"person_id": person_id, "systolic": 121, "diastolic": 78, "pulse_rate": 68, "notes": "DASH diet baseline check", "date": str(today - timedelta(days=2)), "time": "09:00:00"},
-        {"person_id": person_id, "systolic": 124, "diastolic": 79, "pulse_rate": 71, "notes": "Evening reading", "date": str(today - timedelta(days=1)), "time": "19:30:00"},
-        {"person_id": person_id, "systolic": 120, "diastolic": 78, "pulse_rate": 70, "notes": "Morning check before coffee", "date": str(today), "time": "07:45:00"},
-    ]
-    try:
-        supabase.table("records").insert(sample_records).execute()
-    except Exception:
-        pass
-
-
-def _seed_local_records():
-    """Generates 30 days of initial readings for John Doe so graphs have rich data."""
-    from blood_pressure_tracker import BloodPressureRecord
-    records = []
-    today = date.today()
-    import math
-
-    for i in range(29, -1, -1):
-        d = today - timedelta(days=i)
-        sys_val = int(140 - (30 - i) * 0.4 + math.sin(i) * 5)
-        dia_val = int(88 - (30 - i) * 0.25 + math.cos(i) * 4)
-        pulse_val = int(72 + math.sin(i) * 4)
-
-        records.append(BloodPressureRecord(
-            record_id=len(records) + 1,
-            person_id=1,
-            systolic=sys_val,
-            diastolic=dia_val,
-            pulse_rate=pulse_val,
-            notes="Morning check" if i % 2 == 0 else "Evening reading after walk",
-            record_date=d,
-            record_time=time(8 if i % 2 == 0 else 19, 30),
-        ))
-
-    store.save_user_records([1], records)
 
 
 # ==========================================

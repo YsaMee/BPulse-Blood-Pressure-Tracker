@@ -103,16 +103,15 @@ def login():
                 session["email"] = res.user.email
                 session["user_id"] = res.user.id
             else:
-                session["email"] = email
-                session["user_id"] = "1"
+                signed_in_user_id = getattr(res, "user_id", None) or getattr(res, "id", None)
+                if signed_in_user_id is None:
+                    raise RuntimeError("Login did not return a user.")
+                session["email"] = getattr(res, "email", email)
+                session["user_id"] = str(signed_in_user_id)
             flash("Login successful.", "success")
             return redirect(url_for("dashboard"))
-        except Exception as e:
-            # Fallback for local testing
-            session["email"] = email
-            session["user_id"] = "1"
-            flash(f"Signed in as {email}.", "success")
-            return redirect(url_for("dashboard"))
+        except Exception:
+            flash("Invalid email or password.", "error")
     return render_template("login.html", mode="login", user=None)
 
 
@@ -136,7 +135,14 @@ def register():
     else:
         try:
             new_u = db.sign_up_autoconfirm(email, password)
-            u_id = getattr(new_u, "user_id", None) or getattr(new_u, "id", None) or "1"
+            auth_user = getattr(new_u, "user", None)
+            u_id = (
+                getattr(new_u, "user_id", None)
+                or getattr(auth_user, "id", None)
+                or getattr(new_u, "id", None)
+            )
+            if u_id is None:
+                raise RuntimeError("Account was created without a user ID.")
             p_name = name if name else email.split("@")[0].capitalize()
             p_age = int(age) if age and age.isdigit() else 45
             db.create_person(u_id, p_name, age=p_age, gender=gender)
@@ -242,9 +248,11 @@ def dashboard():
     chart_diastolic_month = [r.get_diastolic() for r in records_month]
     chart_points_month = [chart_point(record) for record in records_month]
 
-    # Calculate average vitals
-    avg_sys = round(sum(r.get_systolic() for r in records) / len(records), 1) if records else 0
-    avg_dia = round(sum(r.get_diastolic() for r in records) / len(records), 1) if records else 0
+    # Calculate dashboard averages over the same 30-day window shown in the label.
+    avg_sys = round(sum(r.get_systolic() for r in records_month) / len(records_month), 1) if records_month else 0
+    avg_dia = round(sum(r.get_diastolic() for r in records_month) / len(records_month), 1) if records_month else 0
+    pulse_values = [r.get_pulse_rate() for r in records_month if isinstance(r.get_pulse_rate(), int)]
+    avg_pulse = round(sum(pulse_values) / len(pulse_values), 1) if pulse_values else None
 
     curr_pid = selected_person.person_id if selected_person else (people_objs[0].person_id if people_objs else 1)
     medications = db.get_medications_for_person(curr_pid)
@@ -276,6 +284,7 @@ def dashboard():
         names=names,
         avg_sys=avg_sys,
         avg_dia=avg_dia,
+        avg_pulse=avg_pulse,
         chart_labels_7=chart_labels_7,
         chart_systolic_7=chart_systolic_7,
         chart_diastolic_7=chart_diastolic_7,
@@ -337,6 +346,11 @@ def medication_delete(med_id):
 def add_record():
     uid = user_id()
     people_objs = db.get_people_objects(uid)
+    requested_person_id = request.args.get("person_id", type=int)
+    selected_person = next(
+        (person for person in people_objs if person.person_id == requested_person_id),
+        people_objs[0] if people_objs else None,
+    )
 
     if request.method == "POST":
         person_name = request.form.get("person_name", "").strip()
@@ -349,14 +363,14 @@ def add_record():
 
         if not person_name:
             flash("Please enter the person's name.", "error")
-            return redirect(url_for("add_record"))
+            return redirect(url_for("add_record", person_id=request.form.get("person_id")))
 
         try:
             sys_val = int(systolic)
             dia_val = int(diastolic)
         except ValueError:
             flash("Systolic and diastolic must be numbers.", "error")
-            return redirect(url_for("add_record"))
+            return redirect(url_for("add_record", person_id=request.form.get("person_id")))
 
         pulse_val = "N/A" if not pulse else int(pulse)
 
@@ -402,14 +416,15 @@ def add_record():
             session["last_advice"] = advice
             session["last_advice_person"] = person_name
             session["last_advice_reading"] = record_obj.get_summary()
-            return redirect(url_for("dashboard", show_advice=1))
+            return redirect(url_for("dashboard", person_id=person_id_val, show_advice=1))
 
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("dashboard", person_id=person_id_val))
 
     return render_template(
         "add_record.html",
         user=current_user(),
         people=people_objs,
+        selected_person=selected_person,
         page="add_record",
     )
 
@@ -461,10 +476,11 @@ def history():
 @app.route("/history/delete/<int:record_id>", methods=["POST"])
 @login_required
 def delete_record(record_id):
+    person_id = request.form.get("person_id", type=int)
     advice_cache.invalidate_record(record_id)
-    db.delete_record(record_id)
+    db.delete_record(record_id, person_id=person_id)
     flash("Record deleted.", "success")
-    return redirect(url_for("history"))
+    return redirect(url_for("history", person_id=person_id))
 
 
 # ==========================================
@@ -813,7 +829,7 @@ def reading_advice(record_id):
     )
     session["last_advice_reading"] = record_obj.get_summary()
 
-    return redirect(url_for("dashboard", show_advice=1))
+    return redirect(url_for("dashboard", person_id=target_row["person_id"], show_advice=1))
 
 
 @app.route("/advice/dismiss", methods=["POST"])

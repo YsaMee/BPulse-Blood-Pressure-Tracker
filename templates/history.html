@@ -16,7 +16,7 @@
           <span>Download All PDF</span>
         </a>
       {% endif %}
-      <a href="{{ url_for('add_record') }}" class="px-4 py-2 bg-primary-container text-on-primary rounded-xl font-label-md hover:bg-primary text-xs font-bold shadow-xs">
+      <a href="{{ url_for('add_record', person_id=selected_person_id) }}" class="px-4 py-2 bg-primary-container text-on-primary rounded-xl font-label-md hover:bg-primary text-xs font-bold shadow-xs">
         Add Reading
       </a>
     </div>
@@ -39,7 +39,7 @@
       Search
     </button>
     {% if search %}
-      <a href="{{ url_for('history') }}" class="px-3 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-xl text-xs font-medium">Clear</a>
+      <a href="{{ url_for('history', person_id=selected_person_id) }}" class="px-3 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-xl text-xs font-medium">Clear</a>
     {% endif %}
   </form>
 
@@ -87,6 +87,7 @@
                       <span>Advice</span>
                     </a>
                     <form method="POST" action="{{ url_for('delete_record', record_id=record.record_id) }}" onsubmit="return confirm('Delete this reading?');">
+                      <input type="hidden" name="person_id" value="{{ record.person_id }}"/>
                       <button type="submit" class="text-error hover:underline text-xs font-semibold p-1">Delete</button>
                     </form>
                   </div>
