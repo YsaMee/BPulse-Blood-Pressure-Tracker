@@ -1,0 +1,5 @@
+Flask>=3.0.0
+python-dotenv>=1.0.0
+reportlab>=4.0.0
+supabase>=2.0.0
+resend>=0.8.0

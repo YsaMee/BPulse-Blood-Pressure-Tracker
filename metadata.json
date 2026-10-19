@@ -1,0 +1,8 @@
+{
+  "name": "BPulse - Blood Pressure Tracker & AI Health Advisor",
+  "description": "Comprehensive blood pressure monitoring with interactive 7-day and monthly trend graphs, clinical PDF report exports, and restored AI Advisor pipeline.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BPulse — {% block title %}Clinical Blood Pressure Tracker{% endblock %}</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Material Symbols Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+            }
+          }
+        },
+      },
+    };
+  </script>
+</head>
+
+<body class="bg-[#faf8ff] font-sans text-slate-900 antialiased min-h-screen flex">
+
+  <!-- ====================================================================== -->
+  <!-- 1. LEFT DARK SIDEBAR (Only displayed when authenticated/logged in)     -->
+  <!-- ====================================================================== -->
+  {% if user %}
+  <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shrink-0 h-screen sticky top-0 hidden md:flex border-r border-slate-800 z-40">
+    <div>
+      <!-- Brand & Custom Logo Placeholder -->
+      <div class="p-5 flex items-center gap-3 border-b border-slate-800/80">
+        <!-- ================================================================== -->
+        <!-- 📍 [INSERT YOUR LOGO HERE]                                         -->
+        <!-- To customize, place your logo file in 'static/BPulse Logo.png'     -->
+        <!-- ================================================================== -->
+        <a href="{{ url_for('dashboard') }}" class="flex items-center gap-3">
+          <div class="relative w-9 h-9 rounded-xl bg-sky-500 text-white flex items-center justify-center font-bold shadow-md shadow-sky-500/20 shrink-0">
+            <img src="{{ url_for('static', filename='BPulse Logo.png') }}"
+                 alt="BPulse Logo"
+                 class="w-9 h-9 object-contain rounded-xl"
+                 onerror="this.style.display='none'; document.getElementById('sidebar-logo-fallback').style.display='flex';" />
+            <div id="sidebar-logo-fallback" style="display: none;" class="w-9 h-9 rounded-xl bg-sky-500 text-white flex items-center justify-center">
+              <span class="material-symbols-outlined text-xl">favorite</span>
+            </div>
+          </div>
+          <div>
+            <h1 class="font-extrabold text-white text-base tracking-tight leading-tight">BPulse</h1>
+            <span class="text-[11px] font-medium text-slate-400 block">Cardiovascular Health</span>
+          </div>
+        </a>
+      </div>
+
+      <!-- Navigation Menu Items -->
+      <nav class="p-3 space-y-1">
+        <!-- Dashboard -->
+        {% set isDash = (page == 'dashboard') %}
+        <a href="{{ url_for('dashboard') }}"
+           class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all
+                  {% if isDash %}bg-sky-600 text-white shadow-sm{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/60{% endif %}">
+          <span class="material-symbols-outlined text-base {% if isDash %}text-white{% else %}text-slate-400{% endif %}">grid_view</span>
+          <span>Dashboard</span>
+        </a>
+
+        <!-- Trend Graph -->
+        <a href="{{ url_for('dashboard') }}#trend-section"
+           class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
+          <span class="material-symbols-outlined text-base text-slate-400">show_chart</span>
+          <span>Trend Graph</span>
+        </a>
+
+        <!-- Medication Tracker -->
+        <a href="{{ url_for('dashboard') }}#medication-section"
+           class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-base text-slate-400">medication</span>
+            <span>Medication Tracker</span>
+          </div>
+          <span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-sky-950 text-sky-300 border border-sky-800/60">
+            Rx
+          </span>
+        </a>
+
+        <!-- History & Logs -->
+        {% set isHist = (page == 'history') %}
+        <a href="{{ url_for('history') }}"
+           class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all
+                  {% if isHist %}bg-sky-600 text-white shadow-sm{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/60{% endif %}">
+          <span class="material-symbols-outlined text-base {% if isHist %}text-white{% else %}text-slate-400{% endif %}">history</span>
+          <span>History &amp; Logs</span>
+        </a>
+
+        <!-- AI Health Advisor (with Gemini badge) -->
+        <a href="{{ url_for('dashboard') }}#advisor-section"
+           class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-base text-slate-400">auto_awesome</span>
+            <span>AI Health Advisor</span>
+          </div>
+          <span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-indigo-950 text-indigo-300 border border-indigo-800/60">
+            Gemini
+          </span>
+        </a>
+
+        <!-- Manage Patients -->
+        {% set isPatients = (page == 'manage_people') %}
+        <a href="{{ url_for('manage_people') }}"
+           class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all
+                  {% if isPatients %}bg-sky-600 text-white shadow-sm{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/60{% endif %}">
+          <span class="material-symbols-outlined text-base {% if isPatients %}text-white{% else %}text-slate-400{% endif %}">group</span>
+          <span>Manage Patients</span>
+        </a>
+      </nav>
+    </div>
+
+    <!-- Bottom Sidebar Info Card (AHA Guideline 2026) -->
+    <div class="p-4 border-t border-slate-800/80">
+      <div class="p-3 rounded-xl bg-slate-800/50 border border-slate-700/60 text-xs">
+        <div class="flex items-center gap-2 text-slate-200 font-semibold mb-1">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span>AHA Guideline 2026</span>
+        </div>
+        <p class="text-[11px] text-slate-400 leading-normal">
+          Normal: &lt;120/&lt;80 mmHg. Report generation compliant with ACC/AHA guidelines.
+        </p>
+      </div>
+    </div>
+  </aside>
+  {% endif %}
+
+  <!-- ====================================================================== -->
+  <!-- 2. MAIN CONTENT AREA (Navbar on top + Content Below)                   -->
+  <!-- ====================================================================== -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    {% if user %}
+    <!-- TOP NAVBAR (Matching Screenshot) -->
+    <header class="h-16 bg-white border-b border-slate-200/80 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+      
+      <!-- Left: Patient Switcher Dropdown (👤 Maria Santos (55y) ⌄) -->
+      {% set curr_p = selected_person if selected_person else (people[0] if people else None) %}
+      <div class="relative">
+        <select id="patientSelect"
+          {% if patient_detail_view|default(false) %}
+          onchange="window.location.href='/patient/' + this.value"
+          {% else %}
+                onchange="window.location.href='/dashboard?person_id=' + this.value"
+          {% endif %}
+                aria-label="Active Patient"
+                class="appearance-none bg-slate-100 hover:bg-slate-200/80 transition-colors border-0 rounded-xl pl-3 pr-8 py-1.5 text-xs font-semibold text-slate-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500">
+          {% if people %}
+            {% for p in people %}
+              <option value="{{ p.person_id }}" {% if curr_p and curr_p.person_id == p.person_id %}selected{% endif %}>
+                &#128100; {{ p.get_name() }} ({{ p.get_age() if p.get_age else 55 }}y)
+              </option>
+            {% endfor %}
+          {% else %}
+            <option value="1">&#128100; Maria Santos (55y)</option>
+          {% endif %}
+        </select>
+        <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none text-base">expand_more</span>
+      </div>
+
+      <!-- Right: Action Buttons -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        {% if patient_detail_view|default(false) %}
+          <a href="{{ url_for('manage_people') }}"
+             class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors">
+            <span class="material-symbols-outlined text-sm">groups</span>
+            <span>Patients</span>
+          </a>
+        {% endif %}
+
+        <!-- Export PDF Button -->
+        {% if curr_p %}
+          <a href="{{ url_for('patient_pdf', person_id=curr_p.person_id, period='month') }}"
+             class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors">
+            <span class="material-symbols-outlined text-sm text-sky-700">description</span>
+            <span class="hidden sm:inline">Export PDF</span>
+          </a>
+        {% endif %}
+
+        <!-- Quick Log BP Button -->
+        <a href="{{ url_for('add_record') }}"
+           class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-sky-700 hover:bg-sky-800 text-white text-xs font-bold shadow-xs transition-all">
+          <span class="material-symbols-outlined text-sm">add_circle</span>
+          <span>Log BP</span>
+        </a>
+
+        <!-- Sign out link -->
+        <a href="{{ url_for('logout') }}"
+           title="Sign Out"
+           class="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors">
+          <span class="material-symbols-outlined text-lg">logout</span>
+        </a>
+      </div>
+    </header>
+    {% endif %}
+
+    <!-- Page Content Container -->
+    <main class="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto space-y-6">
+
+      <!-- Flash Notifications -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="space-y-2">
+            {% for category, message in messages %}
+              <div class="p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs
+                          {% if category == 'error' %}bg-rose-50 text-rose-800 border border-rose-200
+                          {% elif category == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200
+                          {% else %}bg-sky-50 text-sky-800 border border-sky-200{% endif %}">
+                <span class="material-symbols-outlined text-sm">info</span>
+                <span>{{ message }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+
+</body>
+</html>

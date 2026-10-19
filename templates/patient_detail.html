@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}{{ person.get_name() }} — Patient Detail{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-[1440px] mx-auto flex flex-col gap-6">
+
+  <!-- Header -->
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-2xl bg-primary-container text-on-primary font-bold flex items-center justify-center text-lg">
+        {{ person.get_name()[0]|upper }}
+      </div>
+      <div>
+        <h1 class="font-headline-lg text-on-surface font-bold">{{ person.get_name() }}</h1>
+        <p class="font-body-md text-on-surface-variant">Patient ID: #BP-{{ person.person_id }} • {{ total_count }} total readings</p>
+      </div>
+    </div>
+
+    <!-- Export Buttons -->
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('patient_pdf', person_id=person.person_id, period='week') }}"
+         class="px-3.5 py-2 border border-outline-variant rounded-lg text-primary font-label-md hover:bg-surface-container-high transition-colors flex items-center gap-1">
+        <span class="material-symbols-outlined text-base">picture_as_pdf</span>
+        <span>7-Day PDF</span>
+      </a>
+      <a href="{{ url_for('patient_pdf', person_id=person.person_id, period='month') }}"
+         class="px-3.5 py-2 bg-primary-container text-on-primary rounded-lg font-label-md hover:bg-primary transition-colors flex items-center gap-1">
+        <span class="material-symbols-outlined text-base">picture_as_pdf</span>
+        <span>Month PDF</span>
+      </a>
+      <a href="{{ url_for('patient_csv', person_id=person.person_id, period='all') }}"
+         class="px-3.5 py-2 border border-outline-variant rounded-lg text-on-surface-variant font-label-md hover:bg-surface-container-high transition-colors flex items-center gap-1">
+        <span class="material-symbols-outlined text-base">table_view</span>
+        <span>CSV</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Vitals Overview Cards -->
+  {% if stats %}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-outline-variant/40">
+        <span class="font-label-sm uppercase text-on-surface-variant font-semibold">Average BP</span>
+        <div class="font-headline-lg font-bold text-primary mt-1">
+          {{ "%.1f"|format(stats.avg_sys) }}/{{ "%.1f"|format(stats.avg_dia) }}
+          <span class="text-xs font-normal text-on-surface-variant">mmHg</span>
+        </div>
+      </div>
+      <div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-outline-variant/40">
+        <span class="font-label-sm uppercase text-on-surface-variant font-semibold">Average Pulse</span>
+        <div class="font-headline-lg font-bold text-on-surface mt-1">
+          {{ "%.1f"|format(stats.avg_pulse) if stats.avg_pulse else "N/A" }}
+          <span class="text-xs font-normal text-on-surface-variant">bpm</span>
+        </div>
+      </div>
+      <div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-outline-variant/40">
+        <span class="font-label-sm uppercase text-on-surface-variant font-semibold">Peak Reading</span>
+        <div class="font-headline-md font-bold text-tertiary mt-1">
+          {{ stats.highest_sys.get_summary() if stats.highest_sys else "—" }}
+        </div>
+      </div>
+      <div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-outline-variant/40">
+        <span class="font-label-sm uppercase text-on-surface-variant font-semibold">Lowest Reading</span>
+        <div class="font-headline-md font-bold text-secondary mt-1">
+          {{ stats.lowest_sys.get_summary() if stats.lowest_sys else "—" }}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- TREND GRAPH WITH 7-DAY AND MONTH TOGGLE -->
+  <section class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/40">
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+      <div>
+        <h2 class="font-headline-md font-bold text-on-surface">Blood Pressure Progression Curve</h2>
+        <p class="font-body-sm text-on-surface-variant mt-0.5">Toggle between 7-day monitoring and monthly tracking.</p>
+      </div>
+
+      <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+        <button type="button" id="btn-patient-7" onclick="switchPatientTimeframe('7days')"
+                class="flex items-center gap-1 px-3.5 py-1.5 rounded-lg text-xs transition-all bg-white text-sky-700 shadow-xs font-bold">
+          <span class="material-symbols-outlined text-sm">calendar_view_week</span>
+          <span>Week View</span>
+        </button>
+        <button type="button" id="btn-patient-month" onclick="switchPatientTimeframe('month')"
+                class="flex items-center gap-1 px-3.5 py-1.5 rounded-lg text-xs transition-all text-slate-600 font-medium hover:text-slate-900">
+          <span class="material-symbols-outlined text-sm">calendar_month</span>
+          <span>Month View</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="w-full relative min-h-[260px]">
+      <canvas id="patientBpChart" height="90"></canvas>
+    </div>
+  </section>
+
+  <!-- READINGS TABLE -->
+  <section class="bg-surface-container-lowest rounded-xl p-5 shadow-sm border border-outline-variant/40">
+    <h2 class="font-headline-md font-bold text-on-surface mb-3">All Recorded Readings</h2>
+    {% if records %}
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="font-label-sm text-on-surface-variant border-b border-outline-variant">
+            <tr>
+              <th class="py-2.5 pr-4">Date & Time</th>
+              <th class="py-2.5 pr-4">Blood Pressure</th>
+              <th class="py-2.5 pr-4">Pulse</th>
+              <th class="py-2.5 pr-4">Category</th>
+              <th class="py-2.5 pr-4">Notes</th>
+              <th class="py-2.5 text-right">AI Advice</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in records|reverse %}
+              <tr class="border-b border-outline-variant/40 last:border-0 hover:bg-surface-container-low/50 transition-colors">
+                <td class="py-3 pr-4 text-xs">{{ r.get_date()|pretty_date }} {{ r.get_time()|hhmm }}</td>
+                <td class="py-3 pr-4 font-bold text-on-surface">{{ r.get_summary() }}</td>
+                <td class="py-3 pr-4">{{ r.get_pulse_rate() }} bpm</td>
+                <td class="py-3 pr-4">
+                  <span class="px-2 py-0.5 rounded text-xs font-semibold
+                    {% if r.get_bp_category() == 'Crisis' %}bg-error-container text-on-error-container font-bold
+                    {% elif r.get_bp_category() == 'Stage 2 Hypertension' %}bg-rose-100 text-rose-800
+                    {% elif r.get_bp_category() == 'Stage 1 Hypertension' %}bg-amber-100 text-amber-900
+                    {% elif r.get_bp_category() == 'Elevated' %}bg-yellow-50 text-yellow-800
+                    {% else %}bg-secondary-container text-on-secondary-container{% endif %}">
+                    {{ r.get_bp_category() }}
+                  </span>
+                </td>
+                <td class="py-3 pr-4 text-xs text-on-surface-variant">{{ r.get_notes() or "—" }}</td>
+                <td class="py-3 text-right">
+                  <a href="{{ url_for('reading_advice', record_id=r.record_id) }}"
+                     class="px-2.5 py-1 rounded bg-surface-container-high text-primary hover:bg-primary hover:text-white transition-colors text-xs font-semibold inline-flex items-center gap-1">
+                    <span class="material-symbols-outlined text-sm">psychology</span>
+                    <span>Advice</span>
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="font-body-md text-on-surface-variant">No readings for this patient yet.</p>
+    {% endif %}
+  </section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const data7 = {
+    labels: {{ chart_labels_7|tojson|safe }},
+    systolic: {{ chart_systolic_7|tojson|safe }},
+    diastolic: {{ chart_diastolic_7|tojson|safe }}
+  };
+
+  const dataMonth = {
+    labels: {{ chart_labels_month|tojson|safe }},
+    systolic: {{ chart_systolic_month|tojson|safe }},
+    diastolic: {{ chart_diastolic_month|tojson|safe }}
+  };
+
+  const ctx = document.getElementById('patientBpChart').getContext('2d');
+  let currentChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data7.labels,
+      datasets: [
+        {
+          label: 'Systolic (SYS)',
+          data: data7.systolic,
+          borderColor: '#0369a1',
+          backgroundColor: 'rgba(3, 105, 161, 0.1)',
+          tension: 0.3,
+          fill: true
+        },
+        {
+          label: 'Diastolic (DIA)',
+          data: data7.diastolic,
+          borderColor: '#006a61',
+          backgroundColor: 'rgba(0, 106, 97, 0.08)',
+          tension: 0.3,
+          fill: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { min: 50, max: 180, grid: { color: '#eaedff' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+
+  function switchPatientTimeframe(mode) {
+    const btn7 = document.getElementById('btn-patient-7');
+    const btnMonth = document.getElementById('btn-patient-month');
+
+    if (mode === '7days') {
+      currentChart.data.labels = data7.labels;
+      currentChart.data.datasets[0].data = data7.systolic;
+      currentChart.data.datasets[1].data = data7.diastolic;
+      btn7.className = "px-4 py-1.5 rounded-lg font-label-md transition-all bg-surface-container-lowest text-primary shadow-xs font-bold";
+      btnMonth.className = "px-4 py-1.5 rounded-lg font-label-md transition-all text-on-surface-variant font-medium";
+    } else {
+      currentChart.data.labels = dataMonth.labels;
+      currentChart.data.datasets[0].data = dataMonth.systolic;
+      currentChart.data.datasets[1].data = dataMonth.diastolic;
+      btnMonth.className = "px-4 py-1.5 rounded-lg font-label-md transition-all bg-surface-container-lowest text-primary shadow-xs font-bold";
+      btn7.className = "px-4 py-1.5 rounded-lg font-label-md transition-all text-on-surface-variant font-medium";
+    }
+    currentChart.update();
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Reading History{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-[1440px] mx-auto flex flex-col gap-6">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="font-headline-lg text-on-surface font-bold">Reading History &amp; Logs</h1>
+      <p class="font-body-md text-on-surface-variant mt-1">Review and manage past blood pressure measurements.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      {% if people and people[0] %}
+        <a href="{{ url_for('patient_pdf', person_id=people[0].person_id, period='all') }}"
+           class="px-4 py-2 border border-outline-variant text-primary rounded-xl font-label-md hover:bg-surface-container-high transition-colors flex items-center gap-1.5 shadow-xs text-xs font-bold">
+          <span class="material-symbols-outlined text-base">picture_as_pdf</span>
+          <span>Download All PDF</span>
+        </a>
+      {% endif %}
+      <a href="{{ url_for('add_record') }}" class="px-4 py-2 bg-primary-container text-on-primary rounded-xl font-label-md hover:bg-primary text-xs font-bold shadow-xs">
+        Add Reading
+      </a>
+    </div>
+  </div>
+
+  <form method="GET" action="{{ url_for('history') }}" class="flex flex-wrap items-center gap-2">
+    <input type="search" name="q" value="{{ search }}" placeholder="Search by patient name or notes..."
+           class="w-full max-w-sm bg-surface-container-lowest border border-outline-variant/60 rounded-xl py-2 px-3.5 shadow-xs focus:outline-none focus:ring-2 focus:ring-primary text-xs"/>
+    <label class="sr-only" for="history-patient-filter">Filter by patient</label>
+    <select id="history-patient-filter" name="person_id"
+            class="bg-surface-container-lowest border border-outline-variant/60 rounded-xl py-2 px-3.5 shadow-xs focus:outline-none focus:ring-2 focus:ring-primary text-xs">
+      <option value="">All Patients</option>
+      {% for person in people %}
+        <option value="{{ person.person_id }}" {% if selected_person_id == person.person_id %}selected{% endif %}>
+          {{ person.get_name() }}
+        </option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="px-4 py-2 bg-primary-container text-on-primary rounded-xl font-label-md hover:bg-primary text-xs font-bold shadow-xs">
+      Search
+    </button>
+    {% if search %}
+      <a href="{{ url_for('history') }}" class="px-3 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-xl text-xs font-medium">Clear</a>
+    {% endif %}
+  </form>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm border border-outline-variant/40">
+    {% if records %}
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="font-label-sm text-on-surface-variant border-b border-outline-variant">
+            <tr>
+              <th class="py-3 px-4">Patient</th>
+              <th class="py-3 px-4">Date &amp; Time</th>
+              <th class="py-3 px-4">Blood Pressure</th>
+              <th class="py-3 px-4">Pulse</th>
+              <th class="py-3 px-4">Category</th>
+              <th class="py-3 px-4">Notes</th>
+              <th class="py-3 px-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-outline-variant/30">
+            {% for record in records %}
+              <tr class="hover:bg-surface-container-low/50 transition-colors">
+                <td class="py-3.5 px-4 font-bold text-on-surface">{{ names.get(record.person_id, "Patient") }}</td>
+                <td class="py-3.5 px-4 whitespace-nowrap">
+                  <span class="font-semibold text-on-surface">{{ record.get_date()|pretty_date }}</span><br/>
+                  <span class="text-on-surface-variant text-[11px]">{{ record.get_time()|hhmm }}</span>
+                </td>
+                <td class="py-3.5 px-4 font-bold text-sm whitespace-nowrap">{{ record.get_summary() }}</td>
+                <td class="py-3.5 px-4">{{ record.get_pulse_rate() }} bpm</td>
+                <td class="py-3.5 px-4">
+                  <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold
+                    {% if record.get_bp_category() == 'Crisis' %}bg-error-container text-on-error-container font-bold
+                    {% elif record.get_bp_category() == 'Stage 2 Hypertension' %}bg-rose-100 text-rose-800
+                    {% elif record.get_bp_category() == 'Stage 1 Hypertension' %}bg-amber-100 text-amber-900
+                    {% elif record.get_bp_category() == 'Elevated' %}bg-yellow-50 text-yellow-800
+                    {% else %}bg-secondary-container text-on-secondary-container{% endif %}">
+                    {{ record.get_bp_category() }}
+                  </span>
+                </td>
+                <td class="py-3.5 px-4 text-on-surface-variant max-w-xs">{{ record.get_notes() or "—" }}</td>
+                <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                  <div class="flex items-center justify-end gap-2">
+                    <a href="{{ url_for('reading_advice', record_id=record.record_id) }}"
+                       class="px-2 py-1 rounded bg-surface-container-high text-primary hover:bg-primary hover:text-white transition-colors text-xs font-semibold inline-flex items-center gap-1">
+                      <span class="material-symbols-outlined text-sm">psychology</span>
+                      <span>Advice</span>
+                    </a>
+                    <form method="POST" action="{{ url_for('delete_record', record_id=record.record_id) }}" onsubmit="return confirm('Delete this reading?');">
+                      <button type="submit" class="text-error hover:underline text-xs font-semibold p-1">Delete</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% elif search or selected_person_id %}
+      <p class="font-body-md text-on-surface-variant">No readings matched the selected filters.</p>
+    {% else %}
+      <p class="font-body-md text-on-surface-variant">No readings recorded yet.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

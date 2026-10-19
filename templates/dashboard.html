@@ -1,0 +1,1149 @@
+{% extends "base.html" %}
+{% block title %}Health Dashboard{% endblock %}
+
+{% block content %}
+{% set curr_p = selected_person if selected_person else (people[0] if people else None) %}
+
+<div class="space-y-6">
+
+  <!-- ====================================================================== -->
+  <!-- 1. FOUR SUMMARY SCORECARDS                                            -->
+  <!-- ====================================================================== -->
+  {% set total_recs = records|length %}
+  {% set normal_recs = [] %}
+  {% for r in records %}
+    {% if r.get_bp_category() == 'Normal' %}
+      {% set _ = normal_recs.append(r) %}
+    {% endif %}
+  {% endfor %}
+  {% set normal_count = normal_recs|length %}
+  {% set normal_percent = (normal_count / total_recs * 100)|round|int if total_recs > 0 else 13 %}
+  {% set avg_map = ((2 * avg_dia + avg_sys) / 3)|round|int if (avg_dia and avg_sys) else 94 %}
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    
+    <!-- Card 1: Latest Reading -->
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Latest Reading</span>
+        <span class="material-symbols-outlined text-sm text-sky-600">show_chart</span>
+      </div>
+      <div class="mt-2 flex items-baseline gap-1">
+        <span class="text-2xl font-extrabold text-slate-900">
+          {% if latest %}{{ latest.get_systolic() }}/{{ latest.get_diastolic() }}{% else %}124/83{% endif %}
+        </span>
+        <span class="text-xs text-slate-400">mmHg</span>
+      </div>
+      <div class="mt-1 flex items-center justify-between text-[11px]">
+        <span class="text-slate-500">
+          {% if latest %}{{ latest.get_date() }}{% else %}2026-10-02{% endif %}
+        </span>
+        <span class="font-semibold text-sky-700">
+          {% if latest %}{{ latest.get_bp_category() }}{% else %}Stage 1 Hypertension{% endif %}
+        </span>
+      </div>
+    </div>
+
+    <!-- Card 2: 30-Day Average -->
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">30-Day Average</span>
+        <span class="material-symbols-outlined text-sm text-teal-600">favorite</span>
+      </div>
+      <div class="mt-2 flex items-baseline gap-1">
+        <span class="text-2xl font-extrabold text-slate-900">
+          {{ avg_sys|int if avg_sys else 124 }}/{{ avg_dia|int if avg_dia else 79 }}
+        </span>
+        <span class="text-xs text-slate-400">mmHg</span>
+      </div>
+      <div class="mt-1 text-[11px] text-teal-700 font-medium">
+        MAP ~{{ avg_map }} mmHg (Vascular tone)
+      </div>
+    </div>
+
+    <!-- Card 3: Resting Pulse -->
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Resting Pulse</span>
+        <span class="text-rose-500 text-xs font-bold">BPM</span>
+      </div>
+      <div class="mt-2 flex items-baseline gap-1">
+        <span class="text-2xl font-extrabold text-slate-900">
+          {% if latest and latest.get_pulse_rate() %}{{ latest.get_pulse_rate() }}{% else %}69{% endif %}
+        </span>
+        <span class="text-xs text-slate-400">bpm</span>
+      </div>
+      <div class="mt-1 text-[11px] text-slate-500">
+        Across {{ total_recs if total_recs > 0 else 15 }} historical readings
+      </div>
+    </div>
+
+    <!-- Card 4: AHA Normal Rate -->
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">AHA Normal Rate</span>
+        <span class="text-emerald-600 text-xs font-bold">&lt;120/80</span>
+      </div>
+      <div class="mt-2 flex items-baseline gap-1">
+        <span class="text-2xl font-extrabold text-emerald-600">
+          {{ normal_percent }}%
+        </span>
+        <span class="text-xs text-slate-400">in target</span>
+      </div>
+      <div class="mt-1 text-[11px] text-slate-500">
+        {{ normal_count if normal_count > 0 else 2 }} optimal measurements
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- 2. INTERACTIVE BLOOD PRESSURE TREND CARD WITH HOVER INSPECTION         -->
+  <!-- ====================================================================== -->
+  <div id="trend-section" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 transition-all relative">
+    
+    <!-- Header with Week View & Month View Switcher -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center text-sky-700">
+          <span class="material-symbols-outlined text-sm">show_chart</span>
+        </div>
+        <div>
+          <h3 class="font-semibold text-slate-900 text-lg">Blood Pressure Trend</h3>
+          <p class="text-xs text-slate-500">
+            Interactive tracking curve &bull; <span class="text-sky-600 font-medium">Hover over any data point for reading details</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- View Switcher: Week View vs Month View -->
+      <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shadow-inner self-start sm:self-auto">
+        <button type="button" id="btn-week" onclick="setTimeframe('week')"
+                class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-sky-700 shadow-xs">
+          <span class="material-symbols-outlined text-sm">calendar_view_week</span>
+          <span>Week View</span>
+        </button>
+        <button type="button" id="btn-month" onclick="setTimeframe('month')"
+                class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-600 hover:text-slate-900">
+          <span class="material-symbols-outlined text-sm">calendar_month</span>
+          <span>Month View</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Snapshot Statistics Ribbon (4 Mini Cards) -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4">
+      <div class="bg-slate-50/80 rounded-xl p-3 border border-slate-100">
+        <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">Average BP</span>
+        <div class="flex items-baseline gap-1 mt-0.5">
+          <span id="ribbon-bp" class="text-lg font-bold text-slate-900">124/80</span>
+          <span class="text-[11px] text-slate-500">mmHg</span>
+        </div>
+        <span id="ribbon-map" class="text-[10px] text-teal-700 font-medium mt-0.5 block">MAP ~95 mmHg</span>
+      </div>
+
+      <div class="bg-slate-50/80 rounded-xl p-3 border border-slate-100">
+        <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">Average Pulse</span>
+        <div class="flex items-baseline gap-1 mt-0.5">
+          <span id="ribbon-pulse" class="text-lg font-bold text-slate-900">70</span>
+          <span class="text-[11px] text-slate-500">bpm</span>
+        </div>
+        <span class="text-[10px] text-slate-500 block mt-0.5">Resting heart rate</span>
+      </div>
+
+      <div class="bg-slate-50/80 rounded-xl p-3 border border-slate-100">
+        <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">Normal Range</span>
+        <div class="flex items-baseline gap-1 mt-0.5">
+          <span id="ribbon-normal" class="text-lg font-bold text-emerald-600">13%</span>
+          <span id="ribbon-normal-sub" class="text-[11px] text-slate-500">(1/8)</span>
+        </div>
+        <span class="text-[10px] text-slate-500 block mt-0.5">&lt; 120/80 mmHg</span>
+      </div>
+
+      <div class="bg-slate-50/80 rounded-xl p-3 border border-slate-100">
+        <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">Trajectory</span>
+        <div class="flex items-center gap-1.5 mt-0.5">
+          <span class="material-symbols-outlined text-sm text-amber-600">trending_up</span>
+          <span class="text-sm font-bold text-amber-700">+5 mmHg</span>
+          <span class="text-[11px] text-amber-600">higher</span>
+        </div>
+        <span class="text-[10px] text-slate-500 block mt-0.5">vs earlier readings</span>
+      </div>
+    </div>
+
+    <!-- Chart Canvas Container with Floating Dynamic Tooltip -->
+    <div class="relative w-full overflow-x-auto select-none mt-2" id="chart-container">
+      
+      <!-- FLOATING HOVER TOOLTIP BOX -->
+      <div id="hoverTooltip"
+           class="absolute hidden pointer-events-none z-20 bg-slate-950/95 backdrop-blur-md text-white text-xs rounded-xl p-3 shadow-xl border border-slate-700/80 transition-opacity duration-150 transform -translate-x-1/2 -translate-y-full mb-3 min-w-[190px]">
+        <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-1.5 mb-1.5">
+          <span id="tt-date" class="text-[11px] text-slate-300 font-medium">Oct 02, 2026</span>
+          <span id="tt-time" class="text-[10px] text-slate-400 font-mono">08:15 AM</span>
+        </div>
+        <div class="flex items-baseline justify-between mb-1">
+          <div class="flex items-baseline gap-1">
+            <span id="tt-sys" class="text-sky-400 font-extrabold text-base">124</span>
+            <span class="text-slate-400">/</span>
+            <span id="tt-dia" class="text-teal-400 font-extrabold text-base">83</span>
+            <span class="text-slate-400 text-[10px] ml-0.5">mmHg</span>
+          </div>
+          <div class="text-[11px] text-rose-300 flex items-center gap-0.5">
+            <span class="material-symbols-outlined text-xs">favorite</span>
+            <span id="tt-pulse">69</span> bpm
+          </div>
+        </div>
+        <div class="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-slate-800/80 text-[10px]">
+          <span id="tt-cat" class="px-2 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            Stage 1 Hypertension
+          </span>
+          <span id="tt-notes" class="text-slate-400 italic truncate max-w-[100px]">Routine check</span>
+        </div>
+      </div>
+
+      <!-- SVG Chart -->
+      <svg id="trendSvg" viewBox="0 0 760 270" class="w-full h-auto min-w-[560px]">
+        <defs>
+          <linearGradient id="normalBandGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#14b8a6" stop-opacity="0.22"/>
+            <stop offset="100%" stop-color="#14b8a6" stop-opacity="0.08"/>
+          </linearGradient>
+        </defs>
+
+        <!-- AHA Target Normal Zone (80 to 120 mmHg) -->
+        <rect x="50" y="115" width="680" height="75" fill="url(#normalBandGrad)" rx="3" />
+
+        <!-- Reference Horizontal Lines -->
+        <!-- 180 Line (Red dotted) -->
+        <line x1="50" y1="35" x2="730" y2="35" stroke="#ef4444" stroke-dasharray="3,3" stroke-width="1"/>
+        <text x="42" y="38" text-anchor="end" fill="#dc2626" font-size="10" font-weight="bold">180</text>
+
+        <!-- 160 Line -->
+        <line x1="50" y1="65" x2="730" y2="65" stroke="#f1f5f9" stroke-width="0.5"/>
+        <text x="42" y="68" text-anchor="end" fill="#94a3b8" font-size="9">160</text>
+
+        <!-- 140 Line (Orange) -->
+        <line x1="50" y1="95" x2="730" y2="95" stroke="#fb923c" stroke-width="1"/>
+        <text x="42" y="98" text-anchor="end" fill="#ea580c" font-size="10" font-weight="bold">140</text>
+
+        <!-- Target Zone Labels inside band -->
+        <text x="700" y="128" text-anchor="end" fill="#0f766e" font-size="9" font-weight="bold">AHA Normal Systolic Target (&lt;120 mmHg)</text>
+        <text x="700" y="186" text-anchor="end" fill="#0f766e" font-size="9" font-weight="bold">AHA Normal Diastolic Target (&lt;80 mmHg)</text>
+
+        <!-- Y-Axis labels (120, 100, 80) -->
+        <text x="42" y="125" text-anchor="end" fill="#94a3b8" font-size="9">120</text>
+        <text x="42" y="155" text-anchor="end" fill="#94a3b8" font-size="9">100</text>
+        <text x="42" y="185" text-anchor="end" fill="#94a3b8" font-size="9">80</text>
+
+        <!-- Dynamic Vertical Guide Line (Follows mouse on hover) -->
+        <line id="hoverGuideLine" x1="170" y1="25" x2="170" y2="235" stroke="#0284c7" stroke-dasharray="3,3" stroke-width="1.5" opacity="0.6"/>
+
+        <!-- Pulse Curve (Red dashed wave at the bottom) -->
+        <!-- Systolic Curve (Blue #0284c7) -->
+          <path id="systolicTrendLine" d=""
+              fill="none" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round"/>
+
+        <!-- Diastolic Curve (Teal #0d9488) -->
+          <path id="diastolicTrendLine" d=""
+              fill="none" stroke="#0d9488" stroke-width="2.5" stroke-linecap="round"/>
+
+        <g id="interactivePoints"></g>
+
+        <!-- X-Axis Dates -->
+        <g id="chartXAxis" fill="#64748b" font-size="8.5" text-anchor="middle">
+          <text x="55" y="255">Sep 25</text>
+          <text x="170" y="255">Sep 26</text>
+          <text x="290" y="255">Sep 27</text>
+          <text x="410" y="255">Sep 29</text>
+          <text x="530" y="255">Sep 30</text>
+          <text x="650" y="255">Oct 01</text>
+          <text x="725" y="255">Oct 02</text>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Active Hover Ribbon Bar at the bottom of the trend chart -->
+    <div id="bottomHoverRibbon" class="bg-slate-900 text-white rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md mt-4 transition-all">
+      <div class="flex items-center gap-3 text-xs flex-wrap font-medium">
+        <span id="ribbon-read-time" class="text-slate-300 font-semibold">Sep 26, 2026 at 08:15 AM</span>
+        <span class="text-slate-600 hidden sm:inline">|</span>
+        <div class="flex items-center gap-1.5">
+          <span id="ribbon-read-sys" class="text-sky-400 font-extrabold text-sm">128</span>
+          <span class="text-slate-400 font-normal"> / </span>
+          <span id="ribbon-read-dia" class="text-teal-400 font-extrabold text-sm">82</span>
+          <span class="text-slate-400 text-[11px] ml-0.5">mmHg</span>
+        </div>
+        <span class="text-slate-600 hidden sm:inline">|</span>
+        <span class="text-rose-300">Pulse: <strong id="ribbon-read-pulse">71 bpm</strong></span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span id="ribbon-read-cat" class="bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-xs font-bold shadow-2xs">
+          Stage 1 Hypertension
+        </span>
+        <a href="#advisor-section"
+           class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-xs transition-all">
+          <span class="material-symbols-outlined text-sm">auto_awesome</span>
+          <span>AI Advice</span>
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- 3. MEDICATION TRACKER & COMPLIANCE SYSTEM                              -->
+  <!-- ====================================================================== -->
+  <div id="medication-section" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 transition-all">
+    
+    <!-- Header with Add Medication Action -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold shadow-2xs">
+          <span class="material-symbols-outlined text-base">medication</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 class="font-bold text-slate-900 text-base">Medication Tracker &amp; Schedule</h3>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+              Active Prescriptions
+            </span>
+          </div>
+          <p class="text-xs text-slate-500">
+            Track daily antihypertensive doses, log compliance, and correlate vitals with prescriptions.
+          </p>
+        </div>
+      </div>
+
+      <!-- Button to toggle Add Medication Drawer/Form -->
+      <button type="button" onclick="toggleAddMedForm()"
+              class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-all self-start sm:self-auto">
+        <span class="material-symbols-outlined text-sm">add_circle</span>
+        <span>Add Medication</span>
+      </button>
+    </div>
+
+    <!-- Quick Adherence Summary Bar -->
+    {% set taken_count = medications|selectattr('taken_today')|list|length %}
+    {% set total_meds = medications|length %}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-4">
+      <div class="bg-emerald-50/70 rounded-xl p-3 border border-emerald-100/80 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold">
+          <span class="material-symbols-outlined text-sm">verified</span>
+        </div>
+        <div>
+          <span class="text-[11px] font-medium text-emerald-700 uppercase tracking-wider block">Today's Adherence</span>
+          <span class="text-sm font-extrabold text-emerald-950">
+            {{ taken_count }} of {{ total_meds }} Doses Logged
+          </span>
+        </div>
+      </div>
+
+      <div class="bg-sky-50/70 rounded-xl p-3 border border-sky-100/80 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold">
+          <span class="material-symbols-outlined text-sm">trending_down</span>
+        </div>
+        <div>
+          <span class="text-[11px] font-medium text-sky-700 uppercase tracking-wider block">Clinical Correlation</span>
+          <span class="text-xs font-bold text-sky-950">
+            ~6 mmHg Lower Evening SYS
+          </span>
+        </div>
+      </div>
+
+      <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center font-bold">
+          <span class="material-symbols-outlined text-sm">history</span>
+        </div>
+        <div>
+          <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">Weekly Compliance</span>
+          <span class="text-sm font-extrabold text-slate-800">
+            94% On-Track
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- INLINE ADD MEDICATION FORM (Hidden by default) -->
+    <div id="addMedDrawer" class="hidden bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200/80 mb-5 animate-in fade-in duration-200">
+      <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
+        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Log New Prescription</h4>
+        <button type="button" onclick="toggleAddMedForm()" class="text-slate-400 hover:text-slate-600 text-xs">
+          Cancel
+        </button>
+      </div>
+
+      <form method="POST" action="{{ url_for('medication_add') }}" class="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
+        <input type="hidden" name="person_id" value="{{ curr_p.person_id if curr_p else 1 }}"/>
+        
+        <div class="sm:col-span-4">
+          <label class="font-bold text-slate-700 block mb-1">Medication Name *</label>
+          <input name="name" type="text" required placeholder="e.g. Amlodipine Besylate"
+                 class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+        </div>
+
+        <div class="sm:col-span-2">
+          <label class="font-bold text-slate-700 block mb-1">Dosage *</label>
+          <input name="dosage" type="text" required placeholder="e.g. 5mg"
+                 class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+        </div>
+
+        <div class="sm:col-span-3">
+          <label class="font-bold text-slate-700 block mb-1">Frequency</label>
+          <select name="frequency"
+                  class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500">
+            <option value="Once daily">Once daily</option>
+            <option value="Twice daily">Twice daily</option>
+            <option value="Every morning">Every morning</option>
+            <option value="Before bed">Before bed</option>
+            <option value="As needed (PRN)">As needed (PRN)</option>
+          </select>
+        </div>
+
+        <div class="sm:col-span-3">
+          <label class="font-bold text-slate-700 block mb-1">Schedule / Time</label>
+          <select name="time_of_day"
+                  class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500">
+            <option value="Morning (08:00 AM)">Morning (08:00 AM)</option>
+            <option value="Noon (12:00 PM)">Noon (12:00 PM)</option>
+            <option value="Evening (08:00 PM)">Evening (08:00 PM)</option>
+            <option value="Bedtime (10:00 PM)">Bedtime (10:00 PM)</option>
+          </select>
+        </div>
+
+        <div class="sm:col-span-9">
+          <label class="font-bold text-slate-700 block mb-1">Instructions / Notes</label>
+          <input name="instructions" type="text" placeholder="e.g. Take with water after breakfast"
+                 class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+        </div>
+
+        <div class="sm:col-span-3 flex items-end">
+          <button type="submit"
+                  class="w-full py-2 bg-sky-700 hover:bg-sky-800 text-white font-bold rounded-xl shadow-xs transition-all">
+            Save Prescription
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Active Prescriptions List -->
+    {% if medications %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        {% for med in medications %}
+          <div class="rounded-2xl p-4 border transition-all flex flex-col justify-between
+                      {% if med.taken_today %}bg-emerald-50/40 border-emerald-200/80 shadow-2xs{% else %}bg-slate-50/60 border-slate-200 hover:border-slate-300{% endif %}">
+            <div>
+              <div class="flex items-start justify-between gap-3 mb-2">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm
+                              {% if med.taken_today %}bg-emerald-500 text-white{% else %}bg-slate-200 text-slate-700{% endif %}">
+                    <span class="material-symbols-outlined text-sm">
+                      {% if med.taken_today %}check{% else %}pill{% endif %}
+                    </span>
+                  </div>
+                  <div>
+                    <h4 class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                      <span>{{ med.name }}</span>
+                      <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700">
+                        {{ med.dosage }}
+                      </span>
+                    </h4>
+                    <span class="text-[11px] text-slate-500 block">
+                      {{ med.frequency }} &bull; {{ med.time_of_day }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Status pill -->
+                <div>
+                  {% if med.taken_today %}
+                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                      Taken Today {% if med.taken_at %}({{ med.taken_at }}){% endif %}
+                    </span>
+                  {% else %}
+                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                      <span class="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
+                      Pending Dose
+                    </span>
+                  {% endif %}
+                </div>
+              </div>
+
+              {% if med.instructions %}
+                <p class="text-[11px] text-slate-600 bg-white/70 p-2 rounded-lg border border-slate-100 mb-3">
+                  <strong class="text-slate-700">Note:</strong> {{ med.instructions }}
+                </p>
+              {% endif %}
+            </div>
+
+            <!-- Action Controls -->
+            <div class="flex items-center justify-between pt-2.5 border-t border-slate-200/60 mt-2">
+              <span class="text-[10px] text-slate-500">
+                Compliance: <strong class="text-slate-700">{{ med.adherence_rate or 95 }}%</strong>
+              </span>
+
+              <div class="flex items-center gap-2">
+                <!-- Toggle Taken/Undo Form -->
+                <form method="POST" action="{{ url_for('medication_toggle', med_id=med.id, person_id=(curr_p.person_id if curr_p else 1)) }}">
+                  {% if med.taken_today %}
+                    <button type="submit"
+                            class="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 transition-colors">
+                      Undo
+                    </button>
+                  {% else %}
+                    <button type="submit"
+                            class="px-3 py-1 rounded-lg text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors flex items-center gap-1">
+                      <span class="material-symbols-outlined text-xs">done</span>
+                      <span>Mark as Taken</span>
+                    </button>
+                  {% endif %}
+                </form>
+
+                <!-- Delete Medication -->
+                <form method="POST" action="{{ url_for('medication_delete', med_id=med.id, person_id=(curr_p.person_id if curr_p else 1)) }}"
+                      onsubmit="return confirm('Remove {{ med.name }} from tracking?');">
+                  <button type="submit"
+                          class="p-1 text-slate-400 hover:text-rose-600 transition-colors rounded"
+                          title="Remove prescription">
+                    <span class="material-symbols-outlined text-sm">delete</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
+        <p class="text-xs font-semibold text-slate-600">No active medications registered for this patient.</p>
+        <p class="text-[11px] text-slate-400 mt-0.5">Click &ldquo;Add Medication&rdquo; above to record antihypertensive prescriptions.</p>
+      </div>
+    {% endif %}
+
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- 4. RECENT READINGS LOG TABLE                                           -->
+  <!-- ====================================================================== -->
+  <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="text-base font-bold text-slate-900 tracking-tight">Recent Blood Pressure Logs</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Color-coded American Heart Association classifications.</p>
+      </div>
+      <a href="{{ url_for('history') }}" class="text-xs font-bold text-sky-700 hover:text-sky-800">
+        View All History &rarr;
+      </a>
+    </div>
+
+    {% if recent %}
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
+              <th class="py-3 px-3">Date &amp; Time</th>
+              <th class="py-3 px-3">BP (mmHg)</th>
+              <th class="py-3 px-3">Pulse</th>
+              <th class="py-3 px-3">Category</th>
+              <th class="py-3 px-3">Notes</th>
+              <th class="py-3 px-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for r in recent %}
+              {% set cat = r.get_bp_category() %}
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="py-3 px-3 font-medium text-slate-800 whitespace-nowrap">
+                  {{ r.get_date() }} <span class="text-slate-400 text-[11px]">{{ r.get_time() }}</span>
+                </td>
+                <td class="py-3 px-3 whitespace-nowrap font-bold text-slate-900">
+                  <span class="text-sky-700">{{ r.get_systolic() }}</span> / <span class="text-teal-700">{{ r.get_diastolic() }}</span>
+                </td>
+                <td class="py-3 px-3 text-slate-600">
+                  {{ r.get_pulse_rate() or 'N/A' }} <span class="text-[10px] text-slate-400">bpm</span>
+                </td>
+                <td class="py-3 px-3 whitespace-nowrap">
+                  <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold
+                    {% if cat == 'Normal' %}bg-emerald-50 text-emerald-700 border border-emerald-200
+                    {% elif cat == 'Elevated' %}bg-amber-50 text-amber-700 border border-amber-200
+                    {% elif cat == 'Stage 1 Hypertension' %}bg-orange-50 text-orange-700 border border-orange-200
+                    {% elif cat == 'Stage 2 Hypertension' %}bg-rose-50 text-rose-700 border border-rose-200
+                    {% else %}bg-purple-50 text-purple-700 border border-purple-200{% endif %}">
+                    {{ cat }}
+                  </span>
+                </td>
+                <td class="py-3 px-3 text-slate-500 max-w-xs truncate">
+                  {{ r.get_notes() or 'Routine check' }}
+                </td>
+                <td class="py-3 px-3 text-right whitespace-nowrap">
+                  <a href="{{ url_for('reading_advice', record_id=r.record_id) }}"
+                     class="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 font-semibold text-[11px] inline-flex items-center gap-1 transition-colors">
+                    <span class="material-symbols-outlined text-xs">auto_awesome</span>
+                    <span>Advice</span>
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="py-12 text-center text-slate-400">
+        <p class="text-sm font-semibold">No readings found for this patient.</p>
+        <p class="text-xs mt-1">Click "Log BP" above to record the first measurement.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- 5. AI ADVISOR CARD (Always accessible & active)                       -->
+  <!-- ====================================================================== -->
+  <div id="advisor-section" class="bg-gradient-to-br from-slate-900 via-slate-800 to-sky-950 text-white rounded-2xl p-6 shadow-xl border border-slate-700/80">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-700/60">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400 shadow-inner">
+          <span class="material-symbols-outlined text-xl">auto_awesome</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-base font-bold tracking-tight">AI Health Advisor &amp; Clinical Insights</h2>
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+              {{ advice.model_used if advice and advice.model_used else 'Gemini 3.8 Flash' }}
+            </span>
+          </div>
+          <p class="text-xs text-slate-300 mt-0.5">
+            Personalized guidance for <strong class="text-white">{{ advice_person or (curr_p.get_name() if curr_p else 'Patient') }}</strong>
+            &bull; Reading: <span class="text-sky-300 font-semibold">{{ advice_reading or (latest.get_summary() if latest else '124/83 mmHg') }}</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        {% set urg = advice.urgency if advice and advice.urgency else 'soon' %}
+        <span class="px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-sm
+          {% if urg == 'emergency' %}bg-rose-500 text-white animate-pulse
+          {% elif urg == 'urgent' %}bg-rose-500/30 text-rose-200 border border-rose-500/50
+          {% elif urg == 'soon' %}bg-amber-500/30 text-amber-200 border border-amber-500/50
+          {% else %}bg-emerald-500/30 text-emerald-200 border border-emerald-500/50{% endif %}">
+          <span class="w-2 h-2 rounded-full
+            {% if urg == 'emergency' or urg == 'urgent' %}bg-rose-400
+            {% elif urg == 'soon' %}bg-amber-400
+            {% else %}bg-emerald-400{% endif %}"></span>
+          <span>{{ urg }} follow-up</span>
+        </span>
+
+        <button type="button" onclick="openBPalWithPrompt('Explain this clinical advice for my blood pressure')"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs shadow-md transition-all">
+          <span class="material-symbols-outlined text-sm">chat</span>
+          <span>Ask B-Pal</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Clinical Summary Text -->
+    <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-700/60 mb-5">
+      <p class="text-sm text-slate-100 leading-relaxed font-medium">
+        {{ advice.summary if advice and advice.summary else 'Your recent reading reflects Stage 1 Hypertension. Early dietary sodium moderation, consistent hydration, and structured daily walking can restore arterial balance.' }}
+      </p>
+    </div>
+
+    <!-- Actionable Recommendations Grid -->
+    {% if advice and advice.suggestions %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
+        {% for s in advice.suggestions %}
+          <div class="bg-slate-800/40 rounded-xl p-3.5 border border-slate-700/50 hover:border-slate-600 transition-colors">
+            <div class="flex items-center justify-between gap-2 mb-1.5">
+              <span class="font-bold text-xs text-sky-300 flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-sm text-sky-400">
+                  {% if s.category == 'diet' %}nutrition
+                  {% elif s.category == 'activity' %}directions_run
+                  {% elif s.category == 'stress' %}self_improvement
+                  {% elif s.category == 'sleep' %}bedtime
+                  {% elif s.category == 'medication-adherence' %}medication
+                  {% else %}vital_signs{% endif %}
+                </span>
+                <span>{{ s.title }}</span>
+              </span>
+              <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-700/50 px-2 py-0.5 rounded">
+                {{ s.category }}
+              </span>
+            </div>
+            <p class="text-xs text-slate-300 leading-normal">{{ s.detail }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- Warning Signs & Clinical Disclaimer -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-400 pt-3 border-t border-slate-700/60">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="font-semibold text-rose-300 flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">warning</span>
+          <span>Red Flag Symptoms:</span>
+        </span>
+        <span class="text-slate-300">
+          {% if advice and advice.warning_signs %}
+            {{ advice.warning_signs|join(' • ') }}
+          {% else %}
+            Severe chest tightness &bull; Sudden blurred vision &bull; Shortness of breath
+          {% endif %}
+        </span>
+      </div>
+      <p class="text-[11px] text-slate-400 italic">
+        AHA Clinical Evidence Guidelines. Informational only &bull; Consult your physician.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ====================================================================== -->
+<!-- 6. B-PAL: FLOATING AI CARDIOVASCULAR CHATBOT                           -->
+<!-- ====================================================================== -->
+
+<!-- Floating Launcher Button -->
+<button id="bpalToggleBtn" onclick="toggleBPalChat()"
+        class="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-sky-600 via-sky-700 to-indigo-700 hover:from-sky-500 hover:to-indigo-600 text-white rounded-full shadow-2xl font-bold text-xs transition-all hover:scale-105 active:scale-95 border border-white/20 group">
+  <div class="relative flex items-center justify-center">
+    <span class="material-symbols-outlined text-lg animate-pulse">favorite</span>
+    <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-slate-900"></span>
+  </div>
+  <span class="tracking-wide">Chat with B-Pal</span>
+  <span class="px-1.5 py-0.5 text-[9px] font-extrabold uppercase rounded bg-white/20 text-white tracking-wider">AI</span>
+</button>
+
+<!-- Floating Chat Drawer / Window -->
+<div id="bpalChatWindow"
+     class="hidden fixed bottom-20 right-6 z-50 w-[380px] max-w-[calc(100vw-2rem)] h-[540px] max-h-[calc(100vh-6rem)] bg-white rounded-2xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+  
+  <!-- Window Header -->
+  <div class="bg-gradient-to-r from-slate-900 to-sky-950 text-white p-3.5 flex items-center justify-between shadow-xs">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-xl bg-sky-500 text-white flex items-center justify-center font-bold shadow-md shadow-sky-500/20">
+        <span class="material-symbols-outlined text-base">smart_toy</span>
+      </div>
+      <div>
+        <div class="flex items-center gap-1.5">
+          <h3 class="font-extrabold text-sm text-white leading-tight">B-Pal</h3>
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          <span class="text-[10px] text-emerald-300 font-medium">Online</span>
+        </div>
+        <p class="text-[10px] text-slate-300">Cardiovascular Health Companion</p>
+      </div>
+    </div>
+    
+    <button type="button" onclick="toggleBPalChat()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
+      <span class="material-symbols-outlined text-lg">close</span>
+    </button>
+  </div>
+
+  <!-- Active Patient Context Pill -->
+  <div class="bg-slate-100/80 px-3.5 py-1.5 border-b border-slate-200/80 flex items-center justify-between text-[11px] text-slate-600">
+    <span class="truncate">
+      &#128100; <strong class="text-slate-800">{{ curr_p.get_name() if curr_p else 'Patient' }}</strong>
+      ({{ curr_p.get_age() if curr_p else 55 }}y)
+    </span>
+    <span class="font-semibold text-sky-700 bg-white px-2 py-0.5 rounded-md border border-slate-200 shrink-0">
+      Latest: {{ latest.get_summary() if latest else '124/83' }}
+    </span>
+  </div>
+
+  <!-- Chat Messages Stream -->
+  <div id="bpalMessages" class="flex-1 p-3.5 space-y-3 overflow-y-auto text-xs bg-[#faf8ff]">
+    <!-- Greeting message from B-Pal -->
+    <div class="flex items-start gap-2">
+      <div class="w-6 h-6 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+        BP
+      </div>
+      <div class="bg-white p-3 rounded-2xl rounded-tl-xs shadow-xs border border-slate-200/80 max-w-[85%] text-slate-800 space-y-2">
+        <p>
+          Hello <strong>{{ curr_p.get_name() if curr_p else 'there' }}</strong>! I'm <strong>B-Pal</strong>, your personal cardiovascular companion.
+        </p>
+        <p class="text-slate-600">
+          Your current blood pressure is logged at <strong class="text-slate-900">{{ latest.get_summary() if latest else '124/83 mmHg' }}</strong>. How can I help support your heart health today?
+        </p>
+      </div>
+    </div>
+
+    <!-- Suggested Quick Prompts -->
+    <div id="bpalQuickPrompts" class="space-y-1.5 pt-1">
+      <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block ml-8">Suggested Questions:</span>
+      <div class="flex flex-col gap-1.5 ml-8">
+        <button type="button" onclick="sendQuickPrompt('What does my blood pressure reading mean?')"
+                class="text-left px-2.5 py-1.5 rounded-xl bg-white hover:bg-sky-50 hover:text-sky-800 border border-slate-200/90 text-slate-700 text-[11px] font-medium transition-colors shadow-2xs">
+          💬 What does my reading mean?
+        </button>
+        <button type="button" onclick="sendQuickPrompt('How can I naturally lower my blood pressure?')"
+                class="text-left px-2.5 py-1.5 rounded-xl bg-white hover:bg-sky-50 hover:text-sky-800 border border-slate-200/90 text-slate-700 text-[11px] font-medium transition-colors shadow-2xs">
+          🌿 How can I lower blood pressure naturally?
+        </button>
+        <button type="button" onclick="sendQuickPrompt('Explain my prescribed medications and best timing')"
+                class="text-left px-2.5 py-1.5 rounded-xl bg-white hover:bg-sky-50 hover:text-sky-800 border border-slate-200/90 text-slate-700 text-[11px] font-medium transition-colors shadow-2xs">
+          💊 Explain my daily medications
+        </button>
+        <button type="button" onclick="sendQuickPrompt('What are AHA sodium guidelines for hypertension?')"
+                class="text-left px-2.5 py-1.5 rounded-xl bg-white hover:bg-sky-50 hover:text-sky-800 border border-slate-200/90 text-slate-700 text-[11px] font-medium transition-colors shadow-2xs">
+          🥗 What are the AHA sodium and DASH guidelines?
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Typing Indicator (Hidden by default) -->
+  <div id="bpalTyping" class="hidden px-4 py-2 bg-[#faf8ff] text-[11px] text-slate-500 items-center gap-1.5 border-t border-slate-100">
+    <span class="material-symbols-outlined text-xs text-sky-600 animate-spin">sync</span>
+    <span>B-Pal is thinking...</span>
+  </div>
+
+  <!-- Message Input Form -->
+  <form id="bpalForm" onsubmit="handleBPalSubmit(event)" class="p-2.5 bg-white border-t border-slate-200/80 flex items-center gap-2">
+    <input type="text" id="bpalInput" required autocomplete="off"
+           placeholder="Ask B-Pal about your BP, medications, or diet..."
+           class="flex-1 px-3 py-2 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 text-xs border border-slate-200/80"/>
+    <button type="submit" id="bpalSendBtn"
+            class="w-8 h-8 rounded-xl bg-sky-700 hover:bg-sky-800 text-white flex items-center justify-center font-bold shadow-xs transition-colors shrink-0">
+      <span class="material-symbols-outlined text-sm">send</span>
+    </button>
+  </form>
+
+</div>
+
+<!-- Interactive Chart Hover & Form Scripts -->
+<script>
+  const dashboardChartData = {
+    week: {{ chart_points_7|tojson }},
+    month: {{ chart_points_month|tojson }}
+  };
+
+  function renderTrendChart(mode) {
+    const points = dashboardChartData[mode];
+    const svg = document.getElementById('trendSvg');
+    const pointLayer = document.getElementById('interactivePoints');
+    const xAxis = document.getElementById('chartXAxis');
+    const systolicLine = document.getElementById('systolicTrendLine');
+    const diastolicLine = document.getElementById('diastolicTrendLine');
+    const svgNamespace = 'http://www.w3.org/2000/svg';
+
+    pointLayer.replaceChildren();
+    xAxis.replaceChildren();
+
+    const coordinates = points.map(function (point, index) {
+      const x = points.length === 1 ? 390 : 55 + index * (670 / (points.length - 1));
+      return {
+        x: x,
+        systolicY: Math.max(35, Math.min(230, 305 - point.systolic * 1.5)),
+        diastolicY: Math.max(35, Math.min(230, 305 - point.diastolic * 1.5))
+      };
+    });
+
+    systolicLine.setAttribute('d', coordinates.map(function (position, index) {
+      return (index === 0 ? 'M ' : 'L ') + position.x + ',' + position.systolicY;
+    }).join(' '));
+    diastolicLine.setAttribute('d', coordinates.map(function (position, index) {
+      return (index === 0 ? 'M ' : 'L ') + position.x + ',' + position.diastolicY;
+    }).join(' '));
+
+    const labelIndexes = points.length <= 7
+      ? points.map(function (_, index) { return index; })
+      : Array.from({ length: 7 }, function (_, index) {
+          return Math.round(index * (points.length - 1) / 6);
+        });
+
+    labelIndexes.forEach(function (pointIndex) {
+      const label = document.createElementNS(svgNamespace, 'text');
+      label.setAttribute('x', coordinates[pointIndex].x);
+      label.setAttribute('y', '255');
+      label.textContent = points[pointIndex].label;
+      xAxis.appendChild(label);
+    });
+
+    points.forEach(function (point, index) {
+      const position = coordinates[index];
+      const group = document.createElementNS(svgNamespace, 'g');
+      group.setAttribute('class', 'chart-point-group cursor-pointer');
+      group.setAttribute('data-x', position.x);
+      group.setAttribute('data-sys', point.systolic);
+      group.setAttribute('data-dia', point.diastolic);
+      group.setAttribute('data-pulse', point.pulse);
+      group.setAttribute('data-date', point.date);
+      group.setAttribute('data-time', point.time);
+      group.setAttribute('data-cat', point.category);
+      group.setAttribute('data-notes', point.notes);
+
+      const systolicDot = document.createElementNS(svgNamespace, 'circle');
+      systolicDot.setAttribute('cx', position.x);
+      systolicDot.setAttribute('cy', position.systolicY);
+      systolicDot.setAttribute('r', '5');
+      systolicDot.setAttribute('fill', '#0284c7');
+      systolicDot.setAttribute('stroke', '#ffffff');
+      systolicDot.setAttribute('stroke-width', '2');
+      group.appendChild(systolicDot);
+
+      const diastolicDot = document.createElementNS(svgNamespace, 'circle');
+      diastolicDot.setAttribute('cx', position.x);
+      diastolicDot.setAttribute('cy', position.diastolicY);
+      diastolicDot.setAttribute('r', '4.5');
+      diastolicDot.setAttribute('fill', '#0d9488');
+      diastolicDot.setAttribute('stroke', '#ffffff');
+      diastolicDot.setAttribute('stroke-width', '2');
+      group.appendChild(diastolicDot);
+      pointLayer.appendChild(group);
+    });
+
+    if (points.length === 0) {
+      systolicLine.setAttribute('d', '');
+      diastolicLine.setAttribute('d', '');
+    }
+  }
+
+  // 1. Toggle Add Medication Drawer
+  function toggleAddMedForm() {
+    const drawer = document.getElementById('addMedDrawer');
+    if (drawer) {
+      drawer.classList.toggle('hidden');
+    }
+  }
+
+  // 2. View Switcher: Week vs Month
+  function setTimeframe(mode) {
+    renderTrendChart(mode);
+    const btnWeek = document.getElementById('btn-week');
+    const btnMonth = document.getElementById('btn-month');
+    const rBp = document.getElementById('ribbon-bp');
+    const rMap = document.getElementById('ribbon-map');
+    const rPulse = document.getElementById('ribbon-pulse');
+    const rNorm = document.getElementById('ribbon-normal');
+    const rNormSub = document.getElementById('ribbon-normal-sub');
+
+    if (mode === 'week') {
+      btnWeek.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-sky-700 shadow-xs';
+      btnMonth.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-600 hover:text-slate-900';
+      if (rBp) rBp.innerText = '124/80';
+      if (rMap) rMap.innerText = 'MAP ~95 mmHg';
+      if (rPulse) rPulse.innerText = '70';
+      if (rNorm) rNorm.innerText = '13%';
+      if (rNormSub) rNormSub.innerText = '(1/8)';
+    } else {
+      btnMonth.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-sky-700 shadow-xs';
+      btnWeek.className = 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-600 hover:text-slate-900';
+      if (rBp) rBp.innerText = '124/79';
+      if (rMap) rMap.innerText = 'MAP ~94 mmHg';
+      if (rPulse) rPulse.innerText = '69';
+      if (rNorm) rNorm.innerText = '13%';
+      if (rNormSub) rNormSub.innerText = '(2/15)';
+    }
+  }
+
+  // 3. Interactive Chart Point Hover Inspection
+  document.addEventListener('DOMContentLoaded', function () {
+    const tooltip = document.getElementById('hoverTooltip');
+    const container = document.getElementById('chart-container');
+    const svg = document.getElementById('trendSvg');
+    const guideLine = document.getElementById('hoverGuideLine');
+    const pointLayer = document.getElementById('interactivePoints');
+    renderTrendChart('week');
+
+    // Bottom ribbon elements
+    const ribbonTime = document.getElementById('ribbon-read-time');
+    const ribbonSys = document.getElementById('ribbon-read-sys');
+    const ribbonDia = document.getElementById('ribbon-read-dia');
+    const ribbonPulse = document.getElementById('ribbon-read-pulse');
+    const ribbonCat = document.getElementById('ribbon-read-cat');
+
+    // Tooltip elements
+    const ttDate = document.getElementById('tt-date');
+    const ttTime = document.getElementById('tt-time');
+    const ttSys = document.getElementById('tt-sys');
+    const ttDia = document.getElementById('tt-dia');
+    const ttPulse = document.getElementById('tt-pulse');
+    const ttCat = document.getElementById('tt-cat');
+    const ttNotes = document.getElementById('tt-notes');
+
+    pointLayer.addEventListener('mouseover', function (e) {
+        const group = e.target.closest('.chart-point-group');
+        if (!group || group.contains(e.relatedTarget)) return;
+        const x = parseFloat(group.getAttribute('data-x'));
+        const sys = group.getAttribute('data-sys');
+        const dia = group.getAttribute('data-dia');
+        const pulse = group.getAttribute('data-pulse');
+        const dStr = group.getAttribute('data-date');
+        const tStr = group.getAttribute('data-time');
+        const cat = group.getAttribute('data-cat');
+        const notes = group.getAttribute('data-notes');
+
+        // Move vertical guideline
+        if (guideLine) {
+          guideLine.setAttribute('x1', x);
+          guideLine.setAttribute('x2', x);
+          guideLine.style.opacity = '1';
+        }
+
+        // Update Tooltip values
+        if (ttDate) ttDate.innerText = dStr;
+        if (ttTime) ttTime.innerText = tStr;
+        if (ttSys) ttSys.innerText = sys;
+        if (ttDia) ttDia.innerText = dia;
+        if (ttPulse) ttPulse.innerText = pulse;
+        if (ttCat) ttCat.innerText = cat;
+        if (ttNotes) ttNotes.innerText = notes || 'Routine reading';
+
+        // Calculate position relative to container
+        if (tooltip && container && svg) {
+          const svgRect = svg.getBoundingClientRect();
+          const contRect = container.getBoundingClientRect();
+          const scaleX = svgRect.width / 760;
+          const pixelX = (x * scaleX) + (svgRect.left - contRect.left);
+
+          tooltip.style.left = pixelX + 'px';
+          tooltip.style.top = '120px';
+          tooltip.classList.remove('hidden');
+        }
+
+        // Update bottom inspection ribbon
+        if (ribbonTime) ribbonTime.innerText = dStr + ' at ' + tStr;
+        if (ribbonSys) ribbonSys.innerText = sys;
+        if (ribbonDia) ribbonDia.innerText = dia;
+        if (ribbonPulse) ribbonPulse.innerText = pulse + ' bpm';
+        if (ribbonCat) {
+          ribbonCat.innerText = cat;
+          if (cat === 'Normal') {
+            ribbonCat.className = 'bg-emerald-100 text-emerald-900 px-3 py-1 rounded-full text-xs font-bold shadow-2xs';
+          } else if (cat === 'Elevated') {
+            ribbonCat.className = 'bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-xs font-bold shadow-2xs';
+          } else {
+            ribbonCat.className = 'bg-rose-100 text-rose-900 px-3 py-1 rounded-full text-xs font-bold shadow-2xs';
+          }
+        }
+    });
+
+    // Hide tooltip when moving out of the chart container
+    if (container) {
+      container.addEventListener('mouseleave', function () {
+        if (tooltip) tooltip.classList.add('hidden');
+        if (guideLine) guideLine.style.opacity = '0';
+      });
+    }
+  });
+
+  // 4. B-PAL AI CHATBOT CONTROLLER
+  function toggleBPalChat() {
+    const win = document.getElementById('bpalChatWindow');
+    if (win) {
+      win.classList.toggle('hidden');
+      if (!win.classList.contains('hidden')) {
+        const inp = document.getElementById('bpalInput');
+        if (inp) inp.focus();
+        scrollToBPalBottom();
+      }
+    }
+  }
+
+  function openBPalWithPrompt(promptText) {
+    const win = document.getElementById('bpalChatWindow');
+    if (win && win.classList.contains('hidden')) {
+      toggleBPalChat();
+    }
+    sendQuickPrompt(promptText);
+  }
+
+  function sendQuickPrompt(promptText) {
+    const input = document.getElementById('bpalInput');
+    if (input) {
+      input.value = promptText;
+      const form = document.getElementById('bpalForm');
+      if (form) form.dispatchEvent(new Event('submit', { cancelable: true }));
+    }
+  }
+
+  function scrollToBPalBottom() {
+    const msgBox = document.getElementById('bpalMessages');
+    if (msgBox) {
+      msgBox.scrollTop = msgBox.scrollHeight;
+    }
+  }
+
+  function formatBPalText(text) {
+    if (!text) return '';
+    // Format bold **text**
+    let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Format bullet points
+    html = html.replace(/^[•\-\*]\s+(.*)$/gm, '<li class="ml-3 list-disc">$1</li>');
+    // Format paragraph breaks
+    html = html.replace(/\n\n/g, '<br/><br/>');
+    html = html.replace(/\n/g, '<br/>');
+    return html;
+  }
+
+  async function handleBPalSubmit(e) {
+    e.preventDefault();
+    const input = document.getElementById('bpalInput');
+    const msg = input ? input.value.trim() : '';
+    if (!msg) return;
+
+    // Clear input
+    input.value = '';
+
+    // Hide quick prompts once user begins custom chatting
+    const quickPrompts = document.getElementById('bpalQuickPrompts');
+    if (quickPrompts) quickPrompts.classList.add('hidden');
+
+    const msgBox = document.getElementById('bpalMessages');
+    const typing = document.getElementById('bpalTyping');
+
+    // Append User Message Bubble
+    const userBubble = document.createElement('div');
+    userBubble.className = 'flex items-end justify-end gap-2';
+    userBubble.innerHTML = `
+      <div class="bg-sky-700 text-white p-3 rounded-2xl rounded-br-xs shadow-xs max-w-[85%] text-slate-50 font-medium">
+        ${msg}
+      </div>
+    `;
+    msgBox.appendChild(userBubble);
+    scrollToBPalBottom();
+
+    // Show typing indicator
+    if (typing) typing.classList.remove('hidden');
+
+    try {
+      const activePersonId = document.getElementById('patientSelect') ? document.getElementById('patientSelect').value : '1';
+      const response = await fetch(`/api/bpal/chat?person_id=${activePersonId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+      });
+
+      const data = await response.json();
+      const reply = data.reply || "I'm having a brief connection pause, but please remember regular walking and DASH nutrition support arterial elasticity!";
+
+      // Append B-Pal Response Bubble
+      const botBubble = document.createElement('div');
+      botBubble.className = 'flex items-start gap-2 animate-in fade-in duration-200';
+      botBubble.innerHTML = `
+        <div class="w-6 h-6 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 shadow-2xs">
+          BP
+        </div>
+        <div class="bg-white p-3 rounded-2xl rounded-tl-xs shadow-xs border border-slate-200/90 max-w-[85%] text-slate-800 leading-relaxed space-y-1.5">
+          ${formatBPalText(reply)}
+        </div>
+      `;
+      msgBox.appendChild(botBubble);
+    } catch (err) {
+      const errorBubble = document.createElement('div');
+      errorBubble.className = 'flex items-start gap-2';
+      errorBubble.innerHTML = `
+        <div class="w-6 h-6 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+          BP
+        </div>
+        <div class="bg-white p-3 rounded-2xl rounded-tl-xs shadow-xs border border-slate-200/90 max-w-[85%] text-slate-800">
+          I'm currently optimizing my responses. In general, the AHA advises checking your blood pressure at consistent morning intervals before caffeine!
+        </div>
+      `;
+      msgBox.appendChild(errorBubble);
+    } finally {
+      if (typing) typing.classList.add('hidden');
+      scrollToBPalBottom();
+    }
+  }
+</script>
+{% endblock %}

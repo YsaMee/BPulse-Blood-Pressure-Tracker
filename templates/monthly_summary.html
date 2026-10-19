@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Monthly Summary{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-[1440px] mx-auto flex flex-col gap-6">
+
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="font-headline-lg text-on-surface font-bold">Monthly Summary &amp; Analytics</h1>
+      <p class="font-body-md text-on-surface-variant mt-1">Calendar-based clinical overview for tracked patients.</p>
+    </div>
+
+    {% if selected_person %}
+      <a href="{{ url_for('patient_pdf', person_id=selected_person.person_id, period='month') }}"
+         class="px-4 py-2 border border-outline-variant text-primary rounded-xl font-label-md hover:bg-surface-container-high transition-colors flex items-center gap-1.5 shadow-xs text-xs font-bold">
+        <span class="material-symbols-outlined text-base">picture_as_pdf</span>
+        <span>Download Month PDF</span>
+      </a>
+    {% endif %}
+  </div>
+
+  {% if not people %}
+    <p class="font-body-md text-on-surface-variant">No patients tracked yet.</p>
+  {% else %}
+    <form method="GET" class="flex flex-wrap gap-2.5 items-center bg-surface-container-lowest p-3.5 rounded-2xl border border-outline-variant/40 shadow-xs">
+      <select name="person_id" class="bg-surface-container-low rounded-xl py-2 px-3 text-xs font-bold text-on-surface focus:outline-none">
+        {% for p in people %}
+          <option value="{{ p.person_id }}" {% if p.person_id == selected_person.person_id %}selected{% endif %}>
+            {{ p.get_name() }}
+          </option>
+        {% endfor %}
+      </select>
+      <select name="month" class="bg-surface-container-low rounded-xl py-2 px-3 text-xs font-bold text-on-surface focus:outline-none">
+        {% for m in range(1, 13) %}
+          <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>Month {{ m }}</option>
+        {% endfor %}
+      </select>
+      <input type="number" name="year" value="{{ selected_year }}" min="2020" max="2035"
+             class="bg-surface-container-low rounded-xl py-2 px-3 text-xs font-bold text-on-surface w-24 focus:outline-none"/>
+      <button class="px-4 py-2 bg-primary-container text-on-primary rounded-xl text-xs font-bold hover:bg-primary shadow-xs">
+        Filter Period
+      </button>
+    </form>
+
+    {% if not monthly %}
+      <div class="bg-surface-container-lowest p-8 rounded-2xl border border-outline-variant/40 text-center">
+        <p class="font-body-md text-on-surface-variant text-xs">No records logged for Month {{ selected_month }}/{{ selected_year }}.</p>
+      </div>
+    {% else %}
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant/40">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Total Readings</span>
+          <div class="font-headline-lg font-bold text-on-surface mt-1">{{ summary.get_total_records() }}</div>
+        </div>
+        <div class="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant/40">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Avg Systolic</span>
+          <div class="font-headline-lg font-bold text-primary mt-1">{{ "%.1f"|format(summary.calculate_average_systolic()) }} <span class="text-xs text-on-surface-variant font-normal">mmHg</span></div>
+        </div>
+        <div class="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant/40">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Avg Diastolic</span>
+          <div class="font-headline-lg font-bold text-secondary mt-1">{{ "%.1f"|format(summary.calculate_average_diastolic()) }} <span class="text-xs text-on-surface-variant font-normal">mmHg</span></div>
+        </div>
+        <div class="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant/40">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Avg Pulse</span>
+          <div class="font-headline-lg font-bold text-on-surface mt-1">
+            {% set p = summary.calculate_average_pulse() %}
+            {{ "%.1f"|format(p) if p > 0 else "N/A" }} <span class="text-xs text-on-surface-variant font-normal">bpm</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/40">
+        <h2 class="font-headline-sm font-bold mb-4">Monthly Trend Curve</h2>
+        <canvas id="monthlyBpChart" height="90"></canvas>
+      </div>
+
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <script>
+        const ctx = document.getElementById("monthlyBpChart").getContext("2d");
+        new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: {{ chart_labels|tojson|safe }},
+            datasets: [
+              {
+                label: "Systolic",
+                data: {{ chart_systolic|tojson|safe }},
+                borderColor: "#0369a1",
+                backgroundColor: "rgba(3,105,161,0.1)",
+                tension: 0.35,
+                fill: true
+              },
+              {
+                label: "Diastolic",
+                data: {{ chart_diastolic|tojson|safe }},
+                borderColor: "#006a61",
+                backgroundColor: "rgba(0,106,97,0.08)",
+                tension: 0.35,
+                fill: true
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: { y: { min: 50, max: 180 } }
+          }
+        });
+      </script>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

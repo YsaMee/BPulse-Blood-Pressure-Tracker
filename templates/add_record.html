@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Add Record{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-6 w-full max-w-[1440px] mx-auto">
+  <div>
+    <h1 class="font-headline-lg text-on-surface font-bold">Add Blood Pressure Record</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">
+      Log a verified systolic/diastolic measurement with AHA classification and AI clinical suggestions.
+    </p>
+  </div>
+
+  <form method="POST" action="{{ url_for('add_record') }}"
+        class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+    <!-- LEFT: FORM -->
+    <div class="lg:col-span-7 flex flex-col gap-6">
+
+      <section class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/40">
+        <h2 class="font-headline-sm text-on-surface font-bold mb-4">Patient &amp; Timestamp</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="md:col-span-2">
+            <label class="font-label-md text-on-surface block mb-1.5 font-semibold">Patient Name *</label>
+            <input list="existing_people" name="person_name" required
+                   placeholder="e.g. John Doe"
+                   value="{{ people[0].get_name() if people else '' }}"
+                   class="w-full bg-surface-container-low rounded-xl py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-primary text-sm font-medium"/>
+            <datalist id="existing_people">
+              {% for p in people %}
+                <option value="{{ p.get_name() }}"></option>
+              {% endfor %}
+            </datalist>
+          </div>
+
+          <div>
+            <label class="font-label-md text-on-surface block mb-1.5 font-semibold">Date *</label>
+            <input type="date" name="record_date" required id="record_date"
+                   class="w-full bg-surface-container-low rounded-xl py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-primary text-sm font-medium"/>
+          </div>
+
+          <div>
+            <label class="font-label-md text-on-surface block mb-1.5 font-semibold">Time *</label>
+            <input type="time" name="record_time" required id="record_time"
+                   class="w-full bg-surface-container-low rounded-xl py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-primary text-sm font-medium"/>
+          </div>
+        </div>
+      </section>
+
+      <section class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/40">
+        <h2 class="font-headline-sm text-on-surface font-bold mb-4">Blood Pressure &amp; Pulse Vitals</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-surface-container-low p-4 rounded-xl text-center">
+            <label class="font-label-md text-on-surface font-bold block mb-2">Systolic (SYS) mmHg</label>
+            <input type="number" name="systolic" min="50" max="280" value="120" required
+                   class="w-full text-center bg-surface-container-lowest rounded-xl py-3 font-headline-lg font-bold text-primary focus:outline-none focus:ring-2 focus:ring-primary"/>
+            <p class="font-label-sm text-on-surface-variant mt-2 text-xs">AHA Target: &lt; 120 mmHg</p>
+          </div>
+
+          <div class="bg-surface-container-low p-4 rounded-xl text-center">
+            <label class="font-label-md text-on-surface font-bold block mb-2">Diastolic (DIA) mmHg</label>
+            <input type="number" name="diastolic" min="30" max="180" value="80" required
+                   class="w-full text-center bg-surface-container-lowest rounded-xl py-3 font-headline-lg font-bold text-secondary focus:outline-none focus:ring-2 focus:ring-primary"/>
+            <p class="font-label-sm text-on-surface-variant mt-2 text-xs">AHA Target: &lt; 80 mmHg</p>
+          </div>
+        </div>
+
+        <div class="mt-4 bg-surface-container-low p-4 rounded-xl flex items-center justify-between">
+          <div>
+            <label class="font-label-md text-on-surface font-bold block">Heart Rate / Pulse (bpm)</label>
+            <span class="font-label-sm text-on-surface-variant text-xs">Resting heart rate</span>
+          </div>
+          <input type="number" name="pulse" min="30" max="240" value="72"
+                 class="w-28 bg-surface-container-lowest rounded-xl py-2 px-3 text-center font-headline-md font-bold focus:outline-none focus:ring-2 focus:ring-primary"/>
+        </div>
+      </section>
+
+      <section class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/40">
+        <h2 class="font-headline-sm text-on-surface font-bold mb-3">Context &amp; Clinical Notes</h2>
+        <textarea name="notes" rows="2" placeholder="e.g., Morning check before coffee, post 30-min walk, feeling relaxed..."
+                  class="w-full bg-surface-container-low rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-primary text-sm"></textarea>
+      </section>
+
+      <div class="flex items-center justify-end gap-3">
+        <a href="{{ url_for('dashboard') }}"
+           class="px-5 py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high font-label-md transition-colors text-xs font-semibold">
+          Cancel
+        </a>
+        <button type="submit"
+                class="px-7 py-2.5 rounded-xl bg-primary-container text-on-primary font-label-md hover:bg-primary shadow-sm flex items-center gap-1.5 text-xs font-bold transition-all">
+          <span class="material-symbols-outlined text-base">check_circle</span>
+          <span>Save Reading &amp; Request Advice</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: AHA GUIDE -->
+    <aside class="lg:col-span-5 bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/40 space-y-4">
+      <div>
+        <h3 class="font-headline-sm text-on-surface font-bold">AHA/ACC Classification Reference</h3>
+        <p class="font-body-sm text-on-surface-variant mt-1 text-xs">
+          American Heart Association guideline categories.
+        </p>
+      </div>
+
+      <ul class="flex flex-col gap-2.5 text-xs">
+        <li class="flex items-center justify-between p-3 rounded-xl bg-[#F0FDF4] border border-emerald-200">
+          <div>
+            <span class="font-bold text-[#15803D] block">Normal</span>
+            <span class="text-[#166534] text-[11px]">Optimal cardiovascular baseline</span>
+          </div>
+          <span class="font-mono font-bold text-[#166534]">&lt; 120 / &lt; 80</span>
+        </li>
+        <li class="flex items-center justify-between p-3 rounded-xl bg-[#FFFBEB] border border-amber-200">
+          <div>
+            <span class="font-bold text-[#92400E] block">Elevated</span>
+            <span class="text-[#92400E] text-[11px]">Lifestyle changes recommended</span>
+          </div>
+          <span class="font-mono font-bold text-[#92400E]">120–129 / &lt; 80</span>
+        </li>
+        <li class="flex items-center justify-between p-3 rounded-xl bg-[#FFF7ED] border border-orange-200">
+          <div>
+            <span class="font-bold text-[#9A3412] block">Stage 1 HTN</span>
+            <span class="text-[#9A3412] text-[11px]">DASH diet &amp; physician visit in 1 mo</span>
+          </div>
+          <span class="font-mono font-bold text-[#9A3412]">130–139 / 80–89</span>
+        </li>
+        <li class="flex items-center justify-between p-3 rounded-xl bg-[#FFF1F2] border border-rose-200">
+          <div>
+            <span class="font-bold text-[#9F1239] block">Stage 2 HTN</span>
+            <span class="text-[#9F1239] text-[11px]">Contact doctor within 1-2 days</span>
+          </div>
+          <span class="font-mono font-bold text-[#9F1239]">≥ 140 / ≥ 90</span>
+        </li>
+        <li class="flex items-center justify-between p-3 rounded-xl bg-[#FEE2E2] border border-red-300">
+          <div>
+            <span class="font-bold text-[#7F1D1D] block">Crisis</span>
+            <span class="text-[#7F1D1D] text-[11px]">Emergency medical review</span>
+          </div>
+          <span class="font-mono font-bold text-[#7F1D1D]">&gt; 180 / &gt; 120</span>
+        </li>
+      </ul>
+    </aside>
+  </form>
+</div>
+
+<script>
+  const now = new Date();
+  document.getElementById('record_date').value = now.toISOString().slice(0, 10);
+  document.getElementById('record_time').value = now.toTimeString().slice(0, 5);
+</script>
+{% endblock %}

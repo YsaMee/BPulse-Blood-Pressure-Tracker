@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Sign In{% endblock %}
+
+{% block content %}
+<style>
+  aside, header { display: none !important; }
+  .pl-64 { padding-left: 0 !important; }
+  main { padding: 0 !important; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+</style>
+
+<div class="w-full max-w-md bg-surface-container-lowest p-8 rounded-2xl shadow-xl border border-outline-variant/40">
+
+  <div class="flex flex-col items-center text-center mb-6">
+    <!-- ============================================================== -->
+    <!-- 📍 [INSERT YOUR LOGIN LOGO HERE]                               -->
+    <!-- ============================================================== -->
+    <div class="relative w-12 h-12 mb-3 flex items-center justify-center">
+      <img src="{{ url_for('static', filename='BPulse Logo.png') }}"
+           alt="BPulse Logo"
+           class="w-12 h-12 object-contain rounded-2xl shadow-md"
+           onerror="this.style.display='none'; document.getElementById('login-logo-fallback').style.display='flex';" />
+      <div id="login-logo-fallback"
+           style="display: none;"
+           class="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center font-bold shadow-md shadow-sky-600/20">
+        <span class="material-symbols-outlined text-2xl">favorite</span>
+      </div>
+    </div>
+    <!-- ============================================================== -->
+    <div class="flex items-center gap-2">
+      <span class="text-xl text-slate-900 font-extrabold tracking-tight">BPulse</span>
+      <span class="bg-sky-100 text-sky-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Cardiovascular</span>
+    </div>
+    <p class="text-slate-500 text-xs mt-1">Clinical blood pressure monitoring &amp; AI advisor</p>
+  </div>
+
+  <div class="w-full bg-surface-container-low p-1 rounded-xl flex items-center mb-6">
+    <button type="button" id="tab-login" onclick="switchTab('login')"
+            class="flex-1 py-2 rounded-lg text-xs font-bold text-center transition-all bg-surface-container-lowest text-primary shadow-xs">
+      Sign In
+    </button>
+    <button type="button" id="tab-register" onclick="switchTab('register')"
+            class="flex-1 py-2 rounded-lg text-xs font-bold text-center transition-all text-on-surface-variant">
+      Create Account
+    </button>
+  </div>
+
+  <!-- LOGIN FORM -->
+  <div id="login-view" class="flex flex-col">
+    <form method="POST" action="{{ url_for('login') }}" class="flex flex-col gap-4 text-xs">
+      <div>
+        <label class="font-bold text-slate-700 block mb-1">Email Address</label>
+        <input name="email" type="email" required placeholder="patient@bpulse.health"
+               class="w-full px-3.5 py-2.5 bg-surface-container-low text-on-surface rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"/>
+      </div>
+
+      <div>
+        <label class="font-bold text-slate-700 block mb-1">Password</label>
+        <input name="password" type="password" required placeholder="Enter password"
+               class="w-full px-3.5 py-2.5 bg-surface-container-low text-on-surface rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"/>
+      </div>
+
+      <button type="submit"
+              class="w-full py-2.5 bg-primary-container hover:bg-primary text-on-primary font-bold rounded-xl shadow-sm transition-all mt-2">
+        Sign In to Dashboard
+      </button>
+    </form>
+  </div>
+
+  <!-- REGISTER FORM -->
+  <div id="register-view" class="hidden flex-col">
+    <form method="POST" action="{{ url_for('register') }}" class="flex flex-col gap-3.5 text-xs">
+      <div>
+        <label class="font-bold text-slate-700 block mb-1">Full Name (Patient Profile)</label>
+        <input name="name" type="text" required placeholder="e.g. John Doe"
+               class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80"/>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Age</label>
+          <input name="age" type="number" min="1" max="120" value="45" required
+                 class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80"/>
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Gender</label>
+          <select name="gender"
+                  class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80">
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="font-bold text-slate-700 block mb-1">Email Address</label>
+        <input name="email" type="email" required placeholder="you@example.com"
+               class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80"/>
+      </div>
+      <div>
+        <label class="font-bold text-slate-700 block mb-1">Password</label>
+        <input name="password" type="password" required placeholder="At least 6 characters"
+               class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80"/>
+      </div>
+      <div>
+        <label class="font-bold text-slate-700 block mb-1">Confirm Password</label>
+        <input name="confirm" type="password" required placeholder="Re-enter password"
+               class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80"/>
+      </div>
+      <button type="submit"
+              class="w-full py-2.5 bg-sky-700 hover:bg-sky-800 text-white font-bold rounded-xl shadow-sm transition-all mt-2">
+        Create Account &amp; Patient Profile
+      </button>
+    </form>
+  </div>
+
+</div>
+
+<script>
+  function switchTab(mode) {
+    document.getElementById("login-view").classList.toggle("hidden", mode !== "login");
+    document.getElementById("register-view").classList.toggle("hidden", mode !== "register");
+    document.getElementById("tab-login").className = "flex-1 py-2 rounded-lg text-xs font-bold text-center transition-all " +
+      (mode === "login" ? "bg-surface-container-lowest text-primary shadow-xs" : "text-on-surface-variant");
+    document.getElementById("tab-register").className = "flex-1 py-2 rounded-lg text-xs font-bold text-center transition-all " +
+      (mode === "register" ? "bg-surface-container-lowest text-primary shadow-xs" : "text-on-surface-variant");
+  }
+</script>
+{% endblock %}
