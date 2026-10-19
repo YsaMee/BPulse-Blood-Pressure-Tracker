@@ -9,7 +9,7 @@ from flask import (
     url_for, session, flash, send_file, jsonify
 )
 from dotenv import load_dotenv
-# hi hi
+
 import db
 import ai_advisor
 import advice_cache
