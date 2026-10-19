@@ -222,6 +222,7 @@ def dashboard():
         reading_time = getattr(record, 'record_time', getattr(record, 'time', datetime.min.time()))
         timestamp = datetime.combine(reading_date, reading_time)
         return {
+            "record_id": getattr(record, "record_id", getattr(record, "id", None)),
             "systolic": record.get_systolic(),
             "diastolic": record.get_diastolic(),
             "pulse": record.get_pulse_rate(),

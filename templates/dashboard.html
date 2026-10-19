@@ -111,7 +111,7 @@
         <div>
           <h3 class="font-semibold text-slate-900 text-lg">Blood Pressure Trend</h3>
           <p class="text-xs text-slate-500">
-            Interactive tracking curve &bull; <span class="text-sky-600 font-medium">Hover over any data point for reading details</span>
+            Interactive tracking curve &bull; <span class="text-sky-600 font-medium">Hover for details; click a point to select it for advice</span>
           </p>
         </div>
       </div>
@@ -274,7 +274,9 @@
         <span id="ribbon-read-cat" class="bg-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold shadow-2xs">
           {{ latest.get_bp_category() if latest else 'No reading' }}
         </span>
-        <a href="#advisor-section"
+          <a id="chart-advice-link"
+            href="{{ url_for('reading_advice', record_id=latest.record_id) if latest else '#advisor-section' }}"
+             data-url-template="{{ url_for('reading_advice', record_id=0) }}"
            class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-xs transition-all">
           <span class="material-symbols-outlined text-sm">auto_awesome</span>
           <span>AI Advice</span>
@@ -856,6 +858,7 @@
       const group = document.createElementNS(svgNamespace, 'g');
       group.setAttribute('class', 'chart-point-group cursor-pointer');
       group.setAttribute('data-x', position.x);
+      group.setAttribute('data-record-id', point.record_id);
       group.setAttribute('data-sys', point.systolic);
       group.setAttribute('data-dia', point.diastolic);
       group.setAttribute('data-pulse', point.pulse);
@@ -995,6 +998,27 @@
     const ribbonDia = document.getElementById('ribbon-read-dia');
     const ribbonPulse = document.getElementById('ribbon-read-pulse');
     const ribbonCat = document.getElementById('ribbon-read-cat');
+    const adviceLink = document.getElementById('chart-advice-link');
+
+    pointLayer.addEventListener('click', function (e) {
+      const group = e.target.closest('.chart-point-group');
+      if (!group || !adviceLink) return;
+
+      const recordId = group.getAttribute('data-record-id');
+      if (!recordId) return;
+
+      adviceLink.href = adviceLink.dataset.urlTemplate.replace('/0/advice', '/' + encodeURIComponent(recordId) + '/advice');
+      pointLayer.querySelectorAll('.chart-point-group').forEach(function (pointGroup) {
+        pointGroup.removeAttribute('data-selected');
+        pointGroup.querySelectorAll('circle').forEach(function (dot) {
+          dot.setAttribute('stroke-width', '2');
+        });
+      });
+      group.setAttribute('data-selected', 'true');
+      group.querySelectorAll('circle').forEach(function (dot) {
+        dot.setAttribute('stroke-width', '4');
+      });
+    });
 
     // Tooltip elements
     const ttDate = document.getElementById('tt-date');
