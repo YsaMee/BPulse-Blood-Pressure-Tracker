@@ -1,20 +1,75 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# BPulse - Blood Pressure Tracker
 
-# Run and deploy your AI Studio app
+BPulse is a Flask web application for recording and reviewing blood pressure readings. It includes patient profiles, trend charts, medication tracking, monthly summaries, report exports, and an optional AI health-advice experience.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/6f761393-4b78-4347-b78e-f3d7231a6293
+- Record systolic and diastolic blood pressure, pulse, date, time, and notes.
+- Manage patient profiles and medication schedules.
+- Review recent readings, search history, and view 7-day or 30-day trends.
+- Generate monthly summaries and download patient reports as PDF or CSV.
+- Get informational reading suggestions and chat with B-Pal. Without a Gemini API key, the app uses its built-in rule-based advice.
+- Use local JSON files for development, or configure Supabase for database and authentication services.
+
+## Requirements
+
+- Python 3.10 or newer
+- pip
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
+1. Clone the repository and open its directory:
 
+   ```powershell
+   git clone https://github.com/YsaMee/BPulse-Blood-Pressure-Tracker.git
+   cd BPulse-Blood-Pressure-Tracker
+   ```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+2. Create and activate a virtual environment:
+
+   ```powershell
+   py -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   ```
+
+   On macOS or Linux, use `python3 -m venv .venv` and `source .venv/bin/activate` instead.
+
+3. Install dependencies:
+
+   ```powershell
+   python -m pip install -r requirements.txt
+   ```
+
+4. Start the Flask app:
+
+   ```powershell
+   python app.py
+   ```
+
+5. Open [http://127.0.0.1:3000](http://127.0.0.1:3000) in your browser.
+
+The local JSON store creates sample patient profiles and readings when it is empty. Local data is written under `data/` and is excluded from Git.
+
+## Configuration
+
+The app loads environment variables from a `.env` file in the project directory. The local JSON fallback works without one. Set only the integrations you intend to use:
+
+```dotenv
+FLASK_SECRET_KEY=replace-with-a-long-random-secret
+
+# Optional: enables Gemini-backed advice and B-Pal responses
+GEMINI_API_KEY=your-gemini-api-key
+# GEMINI_MODEL=your-supported-gemini-model
+
+# Optional: configure both to use Supabase instead of the local JSON fallback
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-supabase-key
+```
+
+Keep `.env` private. Never commit API keys, Supabase keys, credentials, or real patient information. `FLASK_SECRET_KEY` must be set to a private random value before deployment; the built-in development default is not suitable for production.
+
+## Data and Safety
+
+This project is intended for learning and local development. It is not a medical device and its informational advice does not replace professional medical care. Do not use it to diagnose or treat a condition, and do not rely on it in an emergency.
+
+Blood pressure readings and profile information are sensitive health data. Use fictional data for demos, do not publish real patient records, and do not expose the built-in Flask development server to the public internet. A production deployment needs a properly secured server, session configuration, authentication, and data storage setup.
