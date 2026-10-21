@@ -451,7 +451,20 @@ def history():
     if person_id is not None:
         records = [r for r in records if r.person_id == person_id]
     if search:
-        records = [r for r in records if search in names.get(r.person_id, "").lower() or search in (r.get_notes() or "").lower()]
+        def matches_search(record):
+            category = record.get_bp_category().lower()
+            if category == "stage 1 hypertension":
+                category += " hypertension 1 hypertension one stage one"
+            elif category == "stage 2 hypertension":
+                category += " hypertension 2 hypertension two stage two"
+
+            return (
+                search in names.get(record.person_id, "").lower()
+                or search in (record.get_notes() or "").lower()
+                or search in category
+            )
+
+        records = [r for r in records if matches_search(r)]
 
     records.sort(
         key=lambda r: (
