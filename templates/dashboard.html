@@ -601,14 +601,14 @@
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h2 class="text-base font-bold tracking-tight">AI Health Advisor &amp; Clinical Insights</h2>
+            <h2 class="text-base font-bold tracking-tight">AI Health Advisor Summary</h2>
             <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
-              {{ advice.model_used if advice and advice.model_used else 'Gemini 3.8 Flash' }}
+              {{ advice.model_used if advice and advice.model_used else 'Clinical Summary' }}
             </span>
           </div>
           <p class="text-xs text-slate-300 mt-0.5">
-            Personalized guidance for <strong class="text-white">{{ advice_person or (curr_p.get_name() if curr_p else 'Patient') }}</strong>
-            &bull; Reading: <span class="text-sky-300 font-semibold">{{ advice_reading or (latest.get_summary() if latest else 'No reading available') }}</span>
+            Automatic reading review for <strong class="text-white">{{ advice_person or (curr_p.get_name() if curr_p else 'Patient') }}</strong>
+            &bull; Latest: <span class="text-sky-300 font-semibold">{{ advice_reading or (latest.get_summary() if latest else 'No reading available') }}</span>
           </p>
         </div>
       </div>
@@ -627,10 +627,10 @@
           <span>{{ urg }} follow-up</span>
         </span>
 
-        <button type="button" onclick="openBPalWithPrompt('Explain this clinical advice for my blood pressure')"
+        <button type="button" onclick="toggleBPalChat()"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs shadow-md transition-all">
           <span class="material-symbols-outlined text-sm">chat</span>
-          <span>Ask B-Pal</span>
+          <span>Ask B-Pal a Question</span>
         </button>
       </div>
     </div>
@@ -642,32 +642,21 @@
       </p>
     </div>
 
-    <!-- Actionable Recommendations Grid -->
-    {% if advice and advice.suggestions %}
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
-        {% for s in advice.suggestions %}
-          <div class="bg-slate-800/40 rounded-xl p-3.5 border border-slate-700/50 hover:border-slate-600 transition-colors">
-            <div class="flex items-center justify-between gap-2 mb-1.5">
-              <span class="font-bold text-xs text-sky-300 flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-sm text-sky-400">
-                  {% if s.category == 'diet' %}nutrition
-                  {% elif s.category == 'activity' %}directions_run
-                  {% elif s.category == 'stress' %}self_improvement
-                  {% elif s.category == 'sleep' %}bedtime
-                  {% elif s.category == 'medication-adherence' %}medication
-                  {% else %}vital_signs{% endif %}
-                </span>
-                <span>{{ s.title }}</span>
-              </span>
-              <span class="text-[10px] uppercase font-bold text-slate-400 bg-slate-700/50 px-2 py-0.5 rounded">
-                {{ s.category }}
-              </span>
-            </div>
-            <p class="text-xs text-slate-300 leading-normal">{{ s.detail }}</p>
-          </div>
-        {% endfor %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+      <div class="bg-slate-800/40 rounded-xl p-3.5 border border-slate-700/50">
+        <span class="text-[10px] uppercase tracking-wider font-bold text-slate-400 block mb-1">Recent Trend</span>
+        <p class="text-xs text-slate-200 leading-relaxed">{{ advice_trend }}</p>
       </div>
-    {% endif %}
+      {% if advice and advice.suggestions %}
+        <div class="bg-slate-800/40 rounded-xl p-3.5 border border-slate-700/50">
+          <span class="text-[10px] uppercase tracking-wider font-bold text-slate-400 block mb-1">Suggested Next Step</span>
+          <p class="text-xs text-slate-200 leading-relaxed">
+            <strong class="text-sky-300">{{ advice.suggestions[0].title }}</strong>
+            {{ advice.suggestions[0].detail }}
+          </p>
+        </div>
+      {% endif %}
+    </div>
 
     <!-- Warning Signs & Clinical Disclaimer -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-400 pt-3 border-t border-slate-700/60">
@@ -744,7 +733,7 @@
   </div>
 
   <!-- Chat Messages Stream -->
-  <div id="bpalMessages" class="flex-1 p-3.5 space-y-3 overflow-y-auto text-xs bg-[#faf8ff]">
+  <div id="bpalMessages" class="flex-1 min-h-0 p-3.5 space-y-3 overflow-y-auto text-xs bg-[#faf8ff]">
     <!-- Greeting message from B-Pal -->
     <div class="flex items-start gap-2">
       <div class="w-6 h-6 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
@@ -1095,6 +1084,9 @@
   });
 
   // 4. B-PAL AI CHATBOT CONTROLLER
+  const bpalConversationHistory = [];
+  let bpalRequestInFlight = false;
+
   function toggleBPalChat() {
     const win = document.getElementById('bpalChatWindow');
     if (win) {
@@ -1131,20 +1123,41 @@
     }
   }
 
-  function formatBPalText(text) {
-    if (!text) return '';
-    // Format bold **text**
-    let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    // Format bullet points
-    html = html.replace(/^[•\-\*]\s+(.*)$/gm, '<li class="ml-3 list-disc">$1</li>');
-    // Format paragraph breaks
-    html = html.replace(/\n\n/g, '<br/><br/>');
-    html = html.replace(/\n/g, '<br/>');
-    return html;
+  function appendBPalBubble(role, text) {
+    const msgBox = document.getElementById('bpalMessages');
+    const bubbleRow = document.createElement('div');
+    const content = document.createElement('div');
+    const isUser = role === 'user';
+    bubbleRow.className = isUser
+      ? 'flex items-end justify-end gap-2'
+      : 'flex items-start gap-2 animate-in fade-in duration-200';
+    content.className = isUser
+      ? 'bg-sky-700 text-white p-3 rounded-2xl rounded-br-xs shadow-xs max-w-[85%] min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap font-medium'
+      : 'bg-white p-3 rounded-2xl rounded-tl-xs shadow-xs border border-slate-200/90 max-w-[85%] min-w-0 break-words [overflow-wrap:anywhere] whitespace-pre-wrap text-slate-800 leading-relaxed';
+
+    if (!isUser) {
+      const avatar = document.createElement('div');
+      avatar.className = 'w-6 h-6 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 shadow-2xs';
+      avatar.textContent = 'BP';
+      bubbleRow.appendChild(avatar);
+    }
+
+    String(text || '').split(/(\*\*.*?\*\*)/g).forEach(function (part) {
+      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+        const strong = document.createElement('strong');
+        strong.textContent = part.slice(2, -2);
+        content.appendChild(strong);
+      } else {
+        content.appendChild(document.createTextNode(part));
+      }
+    });
+    bubbleRow.appendChild(content);
+    msgBox.appendChild(bubbleRow);
   }
 
   async function handleBPalSubmit(e) {
     e.preventDefault();
+    if (bpalRequestInFlight) return;
     const input = document.getElementById('bpalInput');
     const msg = input ? input.value.trim() : '';
     if (!msg) return;
@@ -1156,60 +1169,40 @@
     const quickPrompts = document.getElementById('bpalQuickPrompts');
     if (quickPrompts) quickPrompts.classList.add('hidden');
 
-    const msgBox = document.getElementById('bpalMessages');
     const typing = document.getElementById('bpalTyping');
+    const history = bpalConversationHistory.slice(-8);
+    bpalRequestInFlight = true;
 
     // Append User Message Bubble
-    const userBubble = document.createElement('div');
-    userBubble.className = 'flex items-end justify-end gap-2';
-    userBubble.innerHTML = `
-      <div class="bg-sky-700 text-white p-3 rounded-2xl rounded-br-xs shadow-xs max-w-[85%] text-slate-50 font-medium">
-        ${msg}
-      </div>
-    `;
-    msgBox.appendChild(userBubble);
+    appendBPalBubble('user', msg);
     scrollToBPalBottom();
 
     // Show typing indicator
     if (typing) typing.classList.remove('hidden');
+    const sendButton = document.getElementById('bpalSendBtn');
+    if (sendButton) sendButton.disabled = true;
 
     try {
       const activePersonId = '{{ curr_p.person_id if curr_p else 1 }}';
       const response = await fetch(`/api/bpal/chat?person_id=${activePersonId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg })
+        body: JSON.stringify({ message: msg, history: history })
       });
 
       const data = await response.json();
-      const reply = data.reply || "I'm having a brief connection pause, but please remember regular walking and DASH nutrition support arterial elasticity!";
-
-      // Append B-Pal Response Bubble
-      const botBubble = document.createElement('div');
-      botBubble.className = 'flex items-start gap-2 animate-in fade-in duration-200';
-      botBubble.innerHTML = `
-        <div class="w-6 h-6 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 shadow-2xs">
-          BP
-        </div>
-        <div class="bg-white p-3 rounded-2xl rounded-tl-xs shadow-xs border border-slate-200/90 max-w-[85%] text-slate-800 leading-relaxed space-y-1.5">
-          ${formatBPalText(reply)}
-        </div>
-      `;
-      msgBox.appendChild(botBubble);
+      if (!response.ok) throw new Error(data.error || 'Chat request failed with ' + response.status);
+      const reply = data.reply || 'B-Pal could not create a reply. Please try again.';
+      bpalConversationHistory.push({ role: 'user', content: msg });
+      bpalConversationHistory.push({ role: 'assistant', content: reply });
+      appendBPalBubble('assistant', reply);
     } catch (err) {
-      const errorBubble = document.createElement('div');
-      errorBubble.className = 'flex items-start gap-2';
-      errorBubble.innerHTML = `
-        <div class="w-6 h-6 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
-          BP
-        </div>
-        <div class="bg-white p-3 rounded-2xl rounded-tl-xs shadow-xs border border-slate-200/90 max-w-[85%] text-slate-800">
-          I'm currently optimizing my responses. In general, the AHA advises checking your blood pressure at consistent morning intervals before caffeine!
-        </div>
-      `;
-      msgBox.appendChild(errorBubble);
+      console.error('B-Pal chat request failed:', err);
+      appendBPalBubble('assistant', 'I could not get a complete response just now. Please try again.');
     } finally {
       if (typing) typing.classList.add('hidden');
+      if (sendButton) sendButton.disabled = false;
+      bpalRequestInFlight = false;
       scrollToBPalBottom();
     }
   }

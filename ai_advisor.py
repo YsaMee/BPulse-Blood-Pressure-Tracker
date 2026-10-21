@@ -36,7 +36,9 @@ CLINICAL CRITERIA:
 
 IMPORTANT RULES:
 - Never diagnose medical conditions or prescribe specific pharmaceutical dosages.
-- Keep suggestions specific, encouraging, actionable, and concise.
+- Act as a concise, structured dashboard summary, not a conversation. Do not ask follow-up questions.
+- Summarize the latest reading and recent trend in 1-2 short sentences, then give at most one practical next step.
+- Avoid generic lifestyle lists and do not repeat the same guidance in multiple fields.
 - If Crisis, set urgency to "emergency". If Stage 2, set urgency to "urgent". If Stage 1, set urgency to "soon". If Normal/Elevated, set urgency to "routine".
 - Always end with: "This is informational only. Consult your physician before changing treatment."
 
@@ -231,6 +233,8 @@ CORE PERSONALITY & TONE:
 - **Data-Driven & Observant:** Reference the patient's real numbers, trends, pulse, and medications directly.
 - **Action-Oriented Micro-Habits:** Give specific, practical steps (e.g. "Try drinking a glass of water before your morning coffee", "Take a 10-minute stroll after lunch") rather than generic advice.
 - **Interactive:** Always close with an engaging, friendly follow-up question or thought-provoking prompt to keep the conversation going!
+- **Conversational role:** Answer the patient's specific question and explain or discuss it. Do not repeat a full dashboard-advisor summary or provide a long generic list unless the patient asks for detail.
+- Keep the first answer focused and under 180 words so it remains readable in the chat window.
 
 SAFETY BOUNDARIES:
 - Never prescribe prescription drugs or alter medical dosages.
@@ -238,7 +242,13 @@ SAFETY BOUNDARIES:
 - If severe red flags are described (crushing chest pain, shortness of breath, sudden facial numbness), advise immediate emergency care."""
 
 
-def chat_with_bpal(user_message, person=None, records=None, medications=None):
+def chat_with_bpal(
+    user_message,
+    person=None,
+    records=None,
+    medications=None,
+    conversation_history=None,
+):
     """
     Conversational response generator for B-Pal AI Chatbot.
     Uses Gemini API (gemini-3.8-flash) if available, or a rich cardiovascular expert engine.
@@ -277,38 +287,52 @@ Active Medications: {meds_str}
 
 User Question: {user_message}"""
 
-    # 1. Attempt Gemini 3.8 Flash API call
+    # 1. Attempt Gemini Flash API call
     if GEMINI_API_KEY:
-        models_to_try = [GEMINI_MODEL, "gemini-3.8-flash", "gemini-2.5-flash"]
+        models_to_try = list(dict.fromkeys([GEMINI_MODEL, "gemini-2.5-flash"]))
         for m in models_to_try:
             try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={GEMINI_API_KEY}"
-                payload = {
-                    "contents": [
-                        {
-                            "parts": [
-                                {"text": f"{BPAL_SYSTEM_PROMPT}\n\n{prompt_context}"}
-                            ]
-                        }
-                    ],
-                    "generationConfig": {
-                        "temperature": 0.65,
-                        "maxOutputTokens": 700
+                prompt = prompt_context
+                contents = []
+                for message in (conversation_history or [])[-8:]:
+                    role = "model" if message.get("role") == "assistant" else "user"
+                    contents.append({
+                        "role": role,
+                        "parts": [{"text": str(message.get("content", ""))[:1000]}],
+                    })
+                contents.append({"role": "user", "parts": [{"text": prompt}]})
+                for token_limit in (1200, 1800):
+                    payload = {
+                        "system_instruction": {
+                            "parts": [{"text": BPAL_SYSTEM_PROMPT}],
+                        },
+                        "contents": contents,
+                        "generationConfig": {
+                            "temperature": 0.55,
+                            "maxOutputTokens": token_limit,
+                        },
                     }
-                }
-                req = urllib.request.Request(
-                    url,
-                    data=json.dumps(payload).encode("utf-8"),
-                    headers={"Content-Type": "application/json"}
-                )
-                with urllib.request.urlopen(req, timeout=12) as resp:
-                    res_body = resp.read().decode("utf-8")
-                    res_json = json.loads(res_body)
+                    req = urllib.request.Request(
+                        url,
+                        data=json.dumps(payload).encode("utf-8"),
+                        headers={"Content-Type": "application/json"},
+                    )
+                    with urllib.request.urlopen(req, timeout=12) as resp:
+                        res_json = json.loads(resp.read().decode("utf-8"))
                     candidates = res_json.get("candidates", [])
-                    if candidates:
-                        parts = candidates[0].get("content", {}).get("parts", [])
-                        if parts and parts[0].get("text"):
-                            return parts[0].get("text").strip()
+                    if not candidates:
+                        break
+                    candidate = candidates[0]
+                    parts = candidate.get("content", {}).get("parts", [])
+                    text = "".join(part.get("text", "") for part in parts).strip()
+                    if candidate.get("finishReason") == "MAX_TOKENS":
+                        if token_limit < 1800:
+                            continue
+                        break
+                    if text:
+                        return text
+                    break
             except Exception as e:
                 print(f"[B-Pal] Gemini call error on {m}: {e}")
                 continue

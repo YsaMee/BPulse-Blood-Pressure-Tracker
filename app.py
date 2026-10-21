@@ -119,6 +119,65 @@ def _month_range_cutoff(months):
     )
 
 
+def _cached_health_advice(records):
+    if not records:
+        return None
+    latest = records[-1]
+    history_context = [
+        (
+            getattr(record, "record_date", getattr(record, "date", "")),
+            getattr(record, "record_time", getattr(record, "time", "")),
+            record.get_systolic(),
+            record.get_diastolic(),
+            record.get_pulse_rate(),
+            record.get_notes(),
+        )
+        for record in records[-8:]
+    ]
+    advice, _cache_hit = advice_cache.get_or_compute(
+        latest,
+        lambda: ai_advisor.get_health_advice(
+            systolic=latest.get_systolic(),
+            diastolic=latest.get_diastolic(),
+            pulse=latest.get_pulse_rate(),
+            category=latest.get_bp_category(),
+            notes=latest.get_notes(),
+            recent_history=records[-8:],
+        ),
+        context=history_context,
+    )
+    return advice
+
+
+def _reading_trend_summary(records):
+    if len(records) < 6:
+        return "Log at least 6 readings to compare two groups of 3."
+
+    previous = records[-6:-3]
+    recent = records[-3:]
+    systolic_change = round(
+        sum(record.get_systolic() for record in recent) / len(recent)
+        - sum(record.get_systolic() for record in previous) / len(previous)
+    )
+    diastolic_change = round(
+        sum(record.get_diastolic() for record in recent) / len(recent)
+        - sum(record.get_diastolic() for record in previous) / len(previous)
+    )
+
+    def direction(value):
+        if value > 0:
+            return f"up {value}"
+        if value < 0:
+            return f"down {abs(value)}"
+        return "unchanged"
+
+    return (
+        "Average over the latest 3 readings is "
+        f"{direction(systolic_change)} systolic and "
+        f"{direction(diastolic_change)} diastolic vs. the 3 before (mmHg)."
+    )
+
+
 # ==========================================
 # AUTH ROUTES
 # ==========================================
@@ -306,22 +365,10 @@ def dashboard():
 
     curr_pid = selected_person.person_id if selected_person else (people_objs[0].person_id if people_objs else 1)
     medications = db.get_medications_for_person(curr_pid)
-    advice = session.get("last_advice")
-    advice_person = session.get("last_advice_person")
-    advice_reading = session.get("last_advice_reading")
-
-    # If advice is not in session yet, generate initial advice for latest reading
-    if not advice and latest:
-        advice = ai_advisor.get_health_advice(
-            systolic=latest.get_systolic(),
-            diastolic=latest.get_diastolic(),
-            pulse=latest.get_pulse_rate(),
-            category=latest.get_bp_category(),
-            notes=latest.get_notes(),
-            recent_history=records[-8:],
-        )
-        advice_person = selected_person.get_name() if selected_person else "Patient"
-        advice_reading = latest.get_summary()
+    advice = _cached_health_advice(records)
+    advice_person = selected_person.get_name() if selected_person else "Patient"
+    advice_reading = latest.get_summary() if latest else None
+    advice_trend = _reading_trend_summary(records)
 
     return render_template(
         "dashboard.html",
@@ -347,6 +394,7 @@ def dashboard():
         advice=advice,
         advice_person=advice_person,
         advice_reading=advice_reading,
+        advice_trend=advice_trend,
         page="dashboard",
     )
 
@@ -464,20 +512,12 @@ def add_record():
 
         if new_row:
             record_obj = db.row_to_record(new_row)
-            category = record_obj.get_bp_category()
 
             # Generate AI health advice
             recent_rows = db.get_records_for_person(person_id_val)
             recent_records = [db.row_to_record(r) for r in recent_rows][-8:]
 
-            advice = ai_advisor.get_health_advice(
-                systolic=sys_val,
-                diastolic=dia_val,
-                pulse=pulse_val,
-                category=category,
-                notes=notes,
-                recent_history=recent_records,
-            )
+            advice = _cached_health_advice(recent_records)
 
             session["last_advice"] = advice
             session["last_advice_person"] = person_name
@@ -939,20 +979,7 @@ def patient_pdf(person_id):
         ]
         timeframe_label = f"Last {months} month{'s' if months != 1 else ''}"
 
-    advice = None
-    if request.args.get("include_advice") != "0":
-        if session.get("last_advice_person") == person.get_name():
-            advice = session.get("last_advice")
-        if not advice and records:
-            latest = records[-1]
-            advice = ai_advisor.get_health_advice(
-                systolic=latest.get_systolic(),
-                diastolic=latest.get_diastolic(),
-                pulse=latest.get_pulse_rate(),
-                category=latest.get_bp_category(),
-                notes=latest.get_notes(),
-                recent_history=records[-8:],
-            )
+    advice = _cached_health_advice(records) if request.args.get("include_advice") != "0" else None
     medications = db.get_medications_for_person(person_id)
 
     buffer = pdf_export.build_patient_pdf(
@@ -1103,14 +1130,7 @@ def reading_advice(record_id):
     recent_rows = db.get_records_for_person(target_row["person_id"])
     recent_records = [db.row_to_record(r) for r in recent_rows][-8:]
 
-    advice = ai_advisor.get_health_advice(
-        systolic=record_obj.get_systolic(),
-        diastolic=record_obj.get_diastolic(),
-        pulse=record_obj.get_pulse_rate(),
-        category=record_obj.get_bp_category(),
-        notes=record_obj.get_notes(),
-        recent_history=recent_records,
-    )
+    advice = _cached_health_advice(recent_records)
 
     session["last_advice"] = advice
     session["last_advice_person"] = next(
@@ -1139,9 +1159,30 @@ def dismiss_advice():
 def bpal_chat():
     from flask import jsonify
     data = request.get_json(silent=True) or {}
-    user_msg = data.get("message", "").strip()
+    if not isinstance(data, dict):
+        return jsonify({"error": "Chat request must be a JSON object."}), 400
+    raw_message = data.get("message", "")
+    if not isinstance(raw_message, str):
+        return jsonify({"error": "Message must be text."}), 400
+    user_msg = raw_message.strip()
     if not user_msg:
-        return jsonify({"reply": "Hello! I am B-Pal, your cardiovascular companion. Ask me anything about your blood pressure readings, medications, or heart-healthy habits!"})
+        return jsonify({"error": "Enter a question for B-Pal."}), 400
+    if len(user_msg) > 1000:
+        return jsonify({"error": "Please keep your message under 1,000 characters."}), 400
+
+    raw_history = data.get("history", [])
+    history = []
+    if isinstance(raw_history, list):
+        for message in raw_history[-8:]:
+            if (
+                isinstance(message, dict)
+                and message.get("role") in ("user", "assistant")
+                and isinstance(message.get("content"), str)
+            ):
+                history.append({
+                    "role": message["role"],
+                    "content": message["content"][:1000],
+                })
 
     uid = user_id()
     people_objs = db.get_people_objects(uid)
@@ -1164,6 +1205,7 @@ def bpal_chat():
         person=target_person,
         records=records,
         medications=medications,
+        conversation_history=history,
     )
     return jsonify({"reply": reply})
 

@@ -1,5 +1,6 @@
-# advice_cache.py — In-memory & DB caching for AI health advice
+# advice_cache.py — In-memory cache for AI health advice
 import hashlib
+import json
 from threading import Lock
 
 _memory_cache = {}
@@ -7,18 +8,23 @@ _memory_lock = Lock()
 _MEMORY_MAX = 256
 
 
-def _make_hash(systolic, diastolic, pulse, notes):
-    raw = f"{systolic}|{diastolic}|{pulse}|{notes or ''}"
+def _make_hash(systolic, diastolic, pulse, notes, context=None):
+    raw = json.dumps(
+        [systolic, diastolic, pulse, notes or "", context],
+        sort_keys=True,
+        default=str,
+    )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
-def get_or_compute(record_obj, compute_fn):
+def get_or_compute(record_obj, compute_fn, context=None):
     record_id = getattr(record_obj, "record_id", getattr(record_obj, "id", 1))
     input_hash = _make_hash(
         record_obj.get_systolic(),
         record_obj.get_diastolic(),
         record_obj.get_pulse_rate(),
         record_obj.get_notes(),
+        context,
     )
     key = (record_id, input_hash)
 
