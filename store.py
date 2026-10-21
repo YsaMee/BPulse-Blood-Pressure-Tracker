@@ -1,5 +1,6 @@
 # store.py — Local JSON persistence fallback
 import json
+from datetime import datetime
 from pathlib import Path
 
 from blood_pressure_tracker import BloodPressureRecord
@@ -81,7 +82,10 @@ def load_all_medications():
 def load_medications_for_person(person_id):
     pid = int(person_id) if str(person_id).isdigit() else 1
     meds = load_all_medications()
-    return [m for m in meds if int(m.get("person_id", 0)) == pid]
+    person_meds = [m for m in meds if int(m.get("person_id", 0)) == pid]
+    for medication in person_meds:
+        medication["taken_today"] = _was_taken_today(medication)
+    return person_meds
 
 
 def save_all_medications(meds):
@@ -101,7 +105,6 @@ def add_medication(person_id, name, dosage="10mg", frequency="Once daily", time_
         "instructions": instructions.strip() or "Take as directed",
         "taken_today": False,
         "taken_at": None,
-        "adherence_rate": 100,
     }
     meds.append(new_med)
     save_all_medications(meds)
@@ -112,15 +115,26 @@ def toggle_medication(med_id):
     meds = load_all_medications()
     for m in meds:
         if m.get("id") == int(med_id):
-            m["taken_today"] = not m.get("taken_today", False)
-            if m["taken_today"]:
-                from datetime import datetime
-                m["taken_at"] = datetime.now().strftime("%I:%M %p")
-            else:
+            if _was_taken_today(m):
+                m["taken_today"] = False
                 m["taken_at"] = None
+            else:
+                m["taken_today"] = True
+                m["taken_at"] = datetime.now().isoformat(timespec="seconds")
             break
     save_all_medications(meds)
     return True
+
+
+def _was_taken_today(medication):
+    taken_at = medication.get("taken_at")
+    if not isinstance(taken_at, str):
+        return False
+    try:
+        taken_date = datetime.fromisoformat(taken_at).date()
+    except ValueError:
+        return False
+    return taken_date == datetime.now().date()
 
 
 def delete_medication(med_id):

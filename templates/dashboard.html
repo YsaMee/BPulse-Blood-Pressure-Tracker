@@ -329,7 +329,7 @@
         <div>
           <span class="text-[11px] font-medium text-emerald-700 uppercase tracking-wider block">Today's Adherence</span>
           <span class="text-sm font-extrabold text-emerald-950">
-            {{ taken_count }} of {{ total_meds }} Doses Logged
+            {{ taken_count }} of {{ total_meds }} Medications Logged
           </span>
         </div>
       </div>
@@ -339,9 +339,9 @@
           <span class="material-symbols-outlined text-sm">trending_down</span>
         </div>
         <div>
-          <span class="text-[11px] font-medium text-sky-700 uppercase tracking-wider block">Clinical Correlation</span>
+          <span class="text-[11px] font-medium text-sky-700 uppercase tracking-wider block">Medication Tracking</span>
           <span class="text-xs font-bold text-sky-950">
-            ~6 mmHg Lower Evening SYS
+            Mark doses to update today's summary
           </span>
         </div>
       </div>
@@ -351,9 +351,9 @@
           <span class="material-symbols-outlined text-sm">history</span>
         </div>
         <div>
-          <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">Weekly Compliance</span>
+          <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">Today's Compliance</span>
           <span class="text-sm font-extrabold text-slate-800">
-            94% On-Track
+            {% if total_meds %}{{ (taken_count * 100 // total_meds) }}%{% else %}—{% endif %}
           </span>
         </div>
       </div>
@@ -473,10 +473,7 @@
             </div>
 
             <!-- Action Controls -->
-            <div class="flex items-center justify-between pt-2.5 border-t border-slate-200/60 mt-2">
-              <span class="text-[10px] text-slate-500">
-                Compliance: <strong class="text-slate-700">{{ med.adherence_rate or 95 }}%</strong>
-              </span>
+            <div class="flex items-center justify-end pt-2.5 border-t border-slate-200/60 mt-2">
 
               <div class="flex items-center gap-2">
                 <!-- Toggle Taken/Undo Form -->
