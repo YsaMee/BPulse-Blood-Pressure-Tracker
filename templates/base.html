@@ -375,7 +375,7 @@
     </div>
   {% endif %}
 
-  {% if user and curr_p %}
+  {% if user %}
     <script>
       const emergencyHelpDialog = document.getElementById('emergency-help-dialog');
       let emergencyHelpOpener = null;
@@ -403,7 +403,11 @@
           closeEmergencyHelp();
         }
       });
+    </script>
+  {% endif %}
 
+  {% if user and curr_p %}
+    <script>
       const exportModal = document.getElementById('export-modal');
       const exportFormatInputs = Array.from(document.querySelectorAll('input[name="export-format"]'));
       const exportMonthRange = document.getElementById('export-month-range');

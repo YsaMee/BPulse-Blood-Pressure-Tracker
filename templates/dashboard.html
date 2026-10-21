@@ -6,6 +6,32 @@
 
 <div class="space-y-6">
 
+  {% if latest and latest.get_bp_category() == 'Crisis' %}
+    <section class="rounded-2xl border-2 border-rose-300 bg-rose-50 p-4 sm:p-5 shadow-sm" role="alert" aria-live="assertive">
+      <div class="flex items-start gap-3">
+        <span class="material-symbols-outlined text-rose-700 text-2xl" aria-hidden="true">warning</span>
+        <div class="min-w-0 flex-1">
+          <h2 class="font-extrabold text-rose-950">Very high reading needs prompt attention</h2>
+          <p class="mt-1 text-sm text-rose-900">
+            BPulse flagged {{ latest.get_summary() }} as a crisis-range reading because {{ latest.get_bp_category_explanation()|lower }}
+            This single reading is not a diagnosis.
+          </p>
+          <p class="mt-2 text-sm font-semibold text-rose-950">
+            If you have severe symptoms such as chest pain, trouble breathing, sudden weakness or confusion, call 911 now. Do not wait for another reading.
+          </p>
+          <p class="mt-1 text-xs text-rose-900">
+            If you have no severe symptoms, sit quietly and repeat the measurement after at least one minute. If it is still above 180 systolic or 120 diastolic, contact a healthcare professional immediately.
+          </p>
+          <button type="button" onclick="openEmergencyHelp()"
+                  class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-rose-700 px-3 py-2 text-xs font-bold text-white hover:bg-rose-800">
+            <span class="material-symbols-outlined text-sm" aria-hidden="true">emergency</span>
+            Emergency Help
+          </button>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
   <!-- ====================================================================== -->
   <!-- 1. FOUR SUMMARY SCORECARDS                                            -->
   <!-- ====================================================================== -->
