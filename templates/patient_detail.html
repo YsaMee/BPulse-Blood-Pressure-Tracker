@@ -16,22 +16,11 @@
       </div>
     </div>
 
-    <!-- Export Buttons -->
     <div class="flex items-center gap-2">
-      <a href="{{ url_for('patient_pdf', person_id=person.person_id, period='week') }}"
+      <a href="{{ url_for('dashboard', person_id=person.person_id) }}"
          class="px-3.5 py-2 border border-outline-variant rounded-lg text-primary font-label-md hover:bg-surface-container-high transition-colors flex items-center gap-1">
-        <span class="material-symbols-outlined text-base">picture_as_pdf</span>
-        <span>7-Day PDF</span>
-      </a>
-      <a href="{{ url_for('patient_pdf', person_id=person.person_id, period='month') }}"
-         class="px-3.5 py-2 bg-primary-container text-on-primary rounded-lg font-label-md hover:bg-primary transition-colors flex items-center gap-1">
-        <span class="material-symbols-outlined text-base">picture_as_pdf</span>
-        <span>Month PDF</span>
-      </a>
-      <a href="{{ url_for('patient_csv', person_id=person.person_id, period='all') }}"
-         class="px-3.5 py-2 border border-outline-variant rounded-lg text-on-surface-variant font-label-md hover:bg-surface-container-high transition-colors flex items-center gap-1">
-        <span class="material-symbols-outlined text-base">table_view</span>
-        <span>CSV</span>
+        <span class="material-symbols-outlined text-base">dashboard</span>
+        <span>Return to Dashboard</span>
       </a>
     </div>
   </div>
@@ -73,7 +62,7 @@
     <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
       <div>
         <h2 class="font-headline-md font-bold text-on-surface">Blood Pressure Progression Curve</h2>
-        <p class="font-body-sm text-on-surface-variant mt-0.5">Toggle between 7-day monitoring and monthly tracking.</p>
+        <p class="font-body-sm text-on-surface-variant mt-0.5">Blue is systolic; amber is diastolic.</p>
       </div>
 
       <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
@@ -175,18 +164,19 @@
         {
           label: 'Systolic (SYS)',
           data: data7.systolic,
-          borderColor: '#0369a1',
-          backgroundColor: 'rgba(3, 105, 161, 0.1)',
+          borderColor: '#2563eb',
+          backgroundColor: 'rgba(37, 99, 235, 0.08)',
           tension: 0.3,
           fill: true
         },
         {
           label: 'Diastolic (DIA)',
           data: data7.diastolic,
-          borderColor: '#006a61',
-          backgroundColor: 'rgba(0, 106, 97, 0.08)',
+          borderColor: '#d97706',
+          backgroundColor: 'rgba(217, 119, 6, 0.08)',
           tension: 0.3,
-          fill: true
+          fill: true,
+          borderDash: [6, 4]
         }
       ]
     },

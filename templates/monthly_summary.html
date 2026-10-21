@@ -10,31 +10,25 @@
       <p class="font-body-md text-on-surface-variant mt-1">Calendar-based clinical overview for tracked patients.</p>
     </div>
 
-    {% if selected_person %}
-      <a href="{{ url_for('patient_pdf', person_id=selected_person.person_id, period='month') }}"
-         class="px-4 py-2 border border-outline-variant text-primary rounded-xl font-label-md hover:bg-surface-container-high transition-colors flex items-center gap-1.5 shadow-xs text-xs font-bold">
-        <span class="material-symbols-outlined text-base">picture_as_pdf</span>
-        <span>Download Month PDF</span>
-      </a>
-    {% endif %}
   </div>
 
   {% if not people %}
     <p class="font-body-md text-on-surface-variant">No patients tracked yet.</p>
   {% else %}
     <form method="GET" class="flex flex-wrap gap-2.5 items-center bg-surface-container-lowest p-3.5 rounded-2xl border border-outline-variant/40 shadow-xs">
-      <select name="person_id" class="bg-surface-container-low rounded-xl py-2 px-3 text-xs font-bold text-on-surface focus:outline-none">
+      <label class="sr-only" for="summary-patient">Search patient</label>
+      <input id="summary-patient" type="search" name="patient" list="summary-patients" required
+             value="{{ selected_person.get_name() }} (#BP-{{ selected_person.person_id }})"
+             placeholder="Search patient..."
+             class="bg-surface-container-low rounded-xl py-2 px-3 text-xs font-bold text-on-surface focus:outline-none"/>
+      <datalist id="summary-patients">
         {% for p in people %}
-          <option value="{{ p.person_id }}" {% if p.person_id == selected_person.person_id %}selected{% endif %}>
-            {{ p.get_name() }}
-          </option>
+          <option value="{{ p.get_name() }} (#BP-{{ p.person_id }})"></option>
         {% endfor %}
-      </select>
-      <select name="month" class="bg-surface-container-low rounded-xl py-2 px-3 text-xs font-bold text-on-surface focus:outline-none">
-        {% for m in range(1, 13) %}
-          <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>Month {{ m }}</option>
-        {% endfor %}
-      </select>
+      </datalist>
+      <label class="sr-only" for="summary-month">Month number</label>
+      <input id="summary-month" type="number" name="month" value="{{ selected_month }}" min="1" max="12" required
+             class="bg-surface-container-low rounded-xl py-2 px-3 text-xs font-bold text-on-surface w-24 focus:outline-none"/>
       <input type="number" name="year" value="{{ selected_year }}" min="2020" max="2035"
              class="bg-surface-container-low rounded-xl py-2 px-3 text-xs font-bold text-on-surface w-24 focus:outline-none"/>
       <button class="px-4 py-2 bg-primary-container text-on-primary rounded-xl text-xs font-bold hover:bg-primary shadow-xs">
@@ -85,18 +79,19 @@
               {
                 label: "Systolic",
                 data: {{ chart_systolic|tojson|safe }},
-                borderColor: "#0369a1",
-                backgroundColor: "rgba(3,105,161,0.1)",
+                borderColor: "#2563eb",
+                backgroundColor: "rgba(37,99,235,0.08)",
                 tension: 0.35,
                 fill: true
               },
               {
                 label: "Diastolic",
                 data: {{ chart_diastolic|tojson|safe }},
-                borderColor: "#006a61",
-                backgroundColor: "rgba(0,106,97,0.08)",
+                borderColor: "#d97706",
+                backgroundColor: "rgba(217,119,6,0.08)",
                 tension: 0.35,
-                fill: true
+                fill: true,
+                borderDash: [6, 4]
               }
             ]
           },

@@ -21,16 +21,16 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="md:col-span-2">
-            <label class="font-label-md text-on-surface block mb-1.5 font-semibold">Patient Name *</label>
+            <label class="font-label-md text-on-surface block mb-1.5 font-semibold">Search Patient *</label>
             <input list="existing_people" name="person_name" required
-                   {% if editing_record %}readonly{% endif %}
-                   placeholder="e.g. John Doe"
-                       value="{{ selected_person.get_name() if selected_person else '' }}"
+                   {% if editing_record or selected_person %}readonly{% endif %}
+                   placeholder="Search or enter a patient name"
+                       value="{{ selected_person.get_name() ~ ' (#BP-' ~ selected_person.person_id ~ ')' if selected_person else '' }}"
                    class="w-full bg-surface-container-low rounded-xl py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-primary text-sm font-medium"/>
                      {% if selected_person %}<input type="hidden" name="person_id" value="{{ selected_person.person_id }}"/>{% endif %}
             <datalist id="existing_people">
               {% for p in people %}
-                <option value="{{ p.get_name() }}"></option>
+                <option value="{{ p.get_name() }} (#BP-{{ p.person_id }})"></option>
               {% endfor %}
             </datalist>
           </div>

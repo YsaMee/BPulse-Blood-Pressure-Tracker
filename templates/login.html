@@ -69,26 +69,40 @@
   <!-- REGISTER FORM -->
   <div id="register-view" class="hidden flex-col">
     <form method="POST" action="{{ url_for('register') }}" class="flex flex-col gap-3.5 text-xs">
-      <div>
-        <label class="font-bold text-slate-700 block mb-1">Full Name (Patient Profile)</label>
-        <input name="name" type="text" required placeholder="e.g. John Doe"
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">First Name *</label>
+          <input name="first_name" type="text" required autocomplete="given-name"
+                 class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80"/>
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Middle Name</label>
+          <input name="middle_name" type="text" autocomplete="additional-name"
+                 class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80"/>
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Last Name *</label>
+          <input name="last_name" type="text" required autocomplete="family-name"
                class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80"/>
+        </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label class="font-bold text-slate-700 block mb-1">Age</label>
           <input name="age" type="number" min="1" max="120" value="45" required
                  class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80"/>
         </div>
         <div>
-          <label class="font-bold text-slate-700 block mb-1">Gender</label>
-          <select name="gender"
-                  class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80">
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-          </select>
+          <span class="font-bold text-slate-700 block mb-1">Gender</span>
+          <div class="flex flex-wrap gap-x-3 gap-y-1 pt-1">
+            {% for option in ['Male', 'Female', 'Other', 'Unspecified'] %}
+              <label class="inline-flex items-center gap-1">
+                <input type="radio" name="gender" value="{{ option }}" {% if option == 'Male' %}checked{% endif %}/>
+                {{ option }}
+              </label>
+            {% endfor %}
+          </div>
         </div>
       </div>
 

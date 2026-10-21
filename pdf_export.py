@@ -41,7 +41,14 @@ def _p(text, style):
     return Paragraph(escape(str(text or "")), style)
 
 
-def build_patient_pdf(person_name, person_id, records, advice=None, timeframe_label="All Records"):
+def build_patient_pdf(
+    person_name,
+    person_id,
+    records,
+    advice=None,
+    timeframe_label="All Records",
+    medications=None,
+):
     records = sorted(
         records,
         key=lambda r: (
@@ -109,6 +116,59 @@ def build_patient_pdf(person_name, person_id, records, advice=None, timeframe_la
     story.append(Paragraph("BPulse — Clinical Blood Pressure Report", h1))
     story.append(Paragraph(f"Patient: <b>{safe_name}</b> (ID #BP-{person_id})", body))
     story.append(Paragraph(f"Reporting Window: {timeframe_label}  |  Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", meta))
+    story.append(Spacer(1, 0.25 * cm))
+
+    medication_rows = medications or []
+    story.append(Paragraph("Medication Log", h2))
+    if medication_rows:
+        medication_data = [[
+            Paragraph("<b>Medication</b>", cell),
+            Paragraph("<b>Dosage</b>", cell),
+            Paragraph("<b>Frequency / Time</b>", cell),
+            Paragraph("<b>Today's Status</b>", cell),
+            Paragraph("<b>Instructions</b>", cell),
+        ]]
+        for medication in medication_rows:
+            status = "Taken today" if medication.get("taken_today") else "Pending"
+            taken_at = medication.get("taken_at")
+            if medication.get("taken_today") and taken_at:
+                status += f" ({taken_at})"
+            medication_data.append([
+                _p(medication.get("name", ""), cell),
+                _p(medication.get("dosage", ""), cell),
+                _p(
+                    f"{medication.get('frequency', '')} / {medication.get('time_of_day', '')}",
+                    cell,
+                ),
+                _p(status, cell),
+                _p(medication.get("instructions", ""), cell),
+            ])
+        medication_table = Table(
+            medication_data,
+            colWidths=[
+                3.4 * cm,
+                2.0 * cm,
+                4.0 * cm,
+                3.0 * cm,
+                CONTENT_WIDTH - (12.4 * cm),
+            ],
+            repeatRows=1,
+        )
+        medication_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#00507d")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5),
+                ("TOPPADDING", (0, 0), (-1, -1), 3.5),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ])
+        )
+        medication_table.hAlign = "LEFT"
+        story.append(medication_table)
+    else:
+        story.append(Paragraph("No medications are currently logged for this patient.", meta))
     story.append(Spacer(1, 0.25 * cm))
 
     if not records:
@@ -326,8 +386,8 @@ def _build_comparison_chart(records, width=None, height=130):
         sys_pts.append((x, sys_y))
         dia_pts.append((x, dia_y))
 
-    sys_color = colors.HexColor("#0284c7")
-    dia_color = colors.HexColor("#0d9488")
+    sys_color = colors.HexColor("#2563eb")
+    dia_color = colors.HexColor("#d97706")
     drawing.add(PolyLine([c for pt in sys_pts for c in pt], strokeColor=sys_color, strokeWidth=1.75))
     drawing.add(PolyLine([c for pt in dia_pts for c in pt], strokeColor=dia_color, strokeWidth=1.75))
 

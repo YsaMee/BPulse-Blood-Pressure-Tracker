@@ -1,5 +1,7 @@
 # app.py — Flask + Supabase / Local JSON fallback + AI + PDF export
+import calendar
 import os
+import re
 from io import BytesIO
 from datetime import date, datetime, timedelta
 from functools import wraps
@@ -81,6 +83,30 @@ def user_id():
     return u.id if u else "1"
 
 
+def _compose_patient_name(first_name, middle_name="", last_name=""):
+    return " ".join(
+        part.strip()
+        for part in (first_name, middle_name, last_name)
+        if part and part.strip()
+    )
+
+
+def _patient_name_parts(name):
+    parts = (name or "").split()
+    if len(parts) < 2:
+        return {"first": parts[0] if parts else "", "middle": "", "last": ""}
+    return {
+        "first": parts[0],
+        "middle": " ".join(parts[1:-1]),
+        "last": parts[-1],
+    }
+
+
+def _patient_id_from_search(value):
+    match = re.search(r"#BP-(\d+)\s*\)?$", (value or "").strip(), re.IGNORECASE)
+    return int(match.group(1)) if match else None
+
+
 # ==========================================
 # AUTH ROUTES
 # ==========================================
@@ -117,7 +143,16 @@ def login():
 
 @app.route("/register", methods=["POST"])
 def register():
-    name = request.form.get("name", "").strip()
+    first_name = request.form.get("first_name", "").strip()
+    middle_name = request.form.get("middle_name", "").strip()
+    last_name = request.form.get("last_name", "").strip()
+    legacy_name = request.form.get("name", "").strip()
+    if legacy_name and not first_name and not last_name:
+        legacy_parts = _patient_name_parts(legacy_name)
+        first_name = legacy_parts["first"]
+        middle_name = legacy_parts["middle"]
+        last_name = legacy_parts["last"]
+    name = _compose_patient_name(first_name, middle_name, last_name)
     age = request.form.get("age", "").strip()
     gender = request.form.get("gender", "Unspecified").strip()
     email = request.form.get("email", "").strip()
@@ -132,6 +167,8 @@ def register():
         flash("Passwords do not match.", "error")
     elif len(password) < 6:
         flash("Password must be at least 6 characters.", "error")
+    elif not first_name or not last_name:
+        flash("First and last name are required.", "error")
     else:
         try:
             new_u = db.sign_up_autoconfirm(email, password)
@@ -382,8 +419,24 @@ def add_record():
             d = date.today()
             t = datetime.now().time()
 
-        person_row = db.get_or_create_person(uid, person_name)
-        person_id_val = person_row.get("id") or person_row.get("person_id", 1)
+        submitted_person_id = (
+            request.form.get("person_id", type=int)
+            or _patient_id_from_search(person_name)
+        )
+        person_row = next(
+            (person for person in people_objs if person.person_id == submitted_person_id),
+            None,
+        ) if submitted_person_id else next(
+            (
+                person for person in people_objs
+                if person.get_name().casefold() == person_name.casefold()
+            ),
+            None,
+        )
+        if person_row is None:
+            flash("Please select an existing patient profile before adding a reading.", "error")
+            return redirect(url_for("manage_people"))
+        person_id_val = person_row.person_id
 
         new_row = db.create_record(
             person_id=person_id_val,
@@ -445,11 +498,7 @@ def history():
     names = {p.person_id: p.get_name() for p in people_objs}
 
     search = request.args.get("q", "").strip().lower()
-    person_id = request.args.get("person_id", type=int)
-    if person_id not in names:
-        person_id = None
-    if person_id is not None:
-        records = [r for r in records if r.person_id == person_id]
+    person_id = None
     if search:
         def matches_search(record):
             category = record.get_bp_category().lower()
@@ -462,6 +511,10 @@ def history():
                 search in names.get(record.person_id, "").lower()
                 or search in (record.get_notes() or "").lower()
                 or search in category
+                or search in str(record.get_date()).lower()
+                or search in str(record.get_systolic())
+                or search in str(record.get_diastolic())
+                or search in str(record.get_pulse_rate()).lower()
             )
 
         records = [r for r in records if matches_search(r)]
@@ -478,11 +531,11 @@ def history():
         "history.html",
         user=current_user(),
         people=people_objs,
-        selected_person=next((p for p in people_objs if p.person_id == person_id), None),
+        selected_person=None,
         records=records,
         names=names,
         search=search,
-        selected_person_id=person_id,
+        selected_person_id=None,
         page="history",
     )
 
@@ -680,7 +733,10 @@ def monthly_summary():
             page="monthly_summary",
         )
 
-    selected_person_id = request.args.get("person_id", type=int) or people_objs[0].person_id
+    selected_person_id = request.args.get("person_id", type=int)
+    if not selected_person_id:
+        selected_person_id = _patient_id_from_search(request.args.get("patient", ""))
+    selected_person_id = selected_person_id or people_objs[0].person_id
     selected_month = request.args.get("month", type=int) or date.today().month
     selected_year = request.args.get("year", type=int) or date.today().year
 
@@ -750,7 +806,11 @@ def manage_people():
         counts[pid] = counts.get(pid, 0) + 1
 
     people_info = [
-        {"person": p, "record_count": counts.get(p.person_id, 0)}
+        {
+            "person": p,
+            "record_count": counts.get(p.person_id, 0),
+            "name_parts": _patient_name_parts(p.get_name()),
+        }
         for p in people_objs
     ]
 
@@ -767,15 +827,61 @@ def manage_people():
 @login_required
 def add_person():
     uid = user_id()
-    name = request.form.get("name", "").strip()
+    first_name = request.form.get("first_name", "").strip()
+    middle_name = request.form.get("middle_name", "").strip()
+    last_name = request.form.get("last_name", "").strip()
+    name = _compose_patient_name(first_name, middle_name, last_name)
     age = request.form.get("age", "").strip()
     gender = request.form.get("gender", "Unspecified").strip()
-    if not name:
-        flash("Patient name is required.", "error")
+    if not first_name or not last_name:
+        flash("First and last name are required.", "error")
     else:
-        p_age = int(age) if age and age.isdigit() else 45
+        try:
+            p_age = int(age)
+        except ValueError:
+            flash("Enter a valid patient age.", "error")
+            return redirect(url_for("manage_people"))
+        if not 1 <= p_age <= 120:
+            flash("Age must be between 1 and 120.", "error")
+            return redirect(url_for("manage_people"))
         db.create_person(uid, name, age=p_age, gender=gender)
         flash(f"Patient profile '{name}' added successfully.", "success")
+    return redirect(url_for("manage_people"))
+
+
+@app.route("/manage-people/edit/<int:person_id>", methods=["POST"])
+@login_required
+def edit_person(person_id):
+    uid = user_id()
+    person = next(
+        (p for p in db.get_people_objects(uid) if p.person_id == person_id),
+        None,
+    )
+    if not person:
+        abort(404)
+
+    first_name = request.form.get("first_name", "").strip()
+    middle_name = request.form.get("middle_name", "").strip()
+    last_name = request.form.get("last_name", "").strip()
+    age_text = request.form.get("age", "").strip()
+    gender = request.form.get("gender", "").strip() or "Unspecified"
+    if not first_name or not last_name:
+        flash("First and last name are required.", "error")
+        return redirect(url_for("manage_people"))
+    try:
+        age = int(age_text)
+    except ValueError:
+        flash("Enter a valid patient age.", "error")
+        return redirect(url_for("manage_people"))
+    if not 1 <= age <= 120:
+        flash("Age must be between 1 and 120.", "error")
+        return redirect(url_for("manage_people"))
+
+    name = _compose_patient_name(first_name, middle_name, last_name)
+    if not db.update_person(uid, person_id, name, age, gender):
+        flash("Could not update this patient profile. Please try again.", "error")
+        return redirect(url_for("manage_people"))
+    flash(f"Patient profile '{name}' updated.", "success")
     return redirect(url_for("manage_people"))
 
 
@@ -788,7 +894,7 @@ def delete_person(person_id):
 
 
 # ==========================================
-# PDF EXPORT (With Period Selection: 7-day, Month, All)
+# PDF EXPORT
 # ==========================================
 
 @app.route("/patient/<int:person_id>/pdf")
@@ -801,18 +907,37 @@ def patient_pdf(person_id):
         flash("Patient not found.", "error")
         return redirect(url_for("manage_people"))
 
-    period = request.args.get("period", "all")
-    records = _filtered_records(person_id, period)
-
-    period_labels = {
-        "week": "Last 7 Days",
-        "month": "Month (Last 30 Days)",
-        "all": "All Historical Records",
-    }
-    timeframe_label = period_labels.get(period, "All Historical Records")
+    period = request.args.get("period")
+    if period in ("week", "month", "all"):
+        records = _filtered_records(person_id, period)
+        period_labels = {
+            "week": "Last 7 Days",
+            "month": "Last 30 Days",
+            "all": "All Historical Records",
+        }
+        timeframe_label = period_labels[period]
+    else:
+        months = request.args.get("months", default=1, type=int)
+        months = min(max(months or 1, 1), 12)
+        today = date.today()
+        month_index = today.year * 12 + today.month - 1 - months
+        cutoff_year, zero_based_month = divmod(month_index, 12)
+        cutoff_month = zero_based_month + 1
+        cutoff = date(
+            cutoff_year,
+            cutoff_month,
+            min(today.day, calendar.monthrange(cutoff_year, cutoff_month)[1]),
+        )
+        records = _filtered_records(person_id, "all")
+        records = [
+            record for record in records
+            if getattr(record, "record_date", getattr(record, "date", date.today())) >= cutoff
+        ]
+        timeframe_label = f"Last {months} month{'s' if months != 1 else ''}"
 
     # Optional advice
     advice = session.get("last_advice")
+    medications = db.get_medications_for_person(person_id)
 
     buffer = pdf_export.build_patient_pdf(
         person_name=person.get_name(),
@@ -820,8 +945,13 @@ def patient_pdf(person_id):
         records=records,
         advice=advice,
         timeframe_label=timeframe_label,
+        medications=medications,
     )
-    filename = f"BPulse_{safe_filename(person.get_name())}_{period}_{date.today().strftime('%Y%m%d')}.pdf"
+    filename = (
+        f"BPulse_{safe_filename(person.get_name())}_"
+        f"{safe_filename(timeframe_label.lower().replace(' ', '_'))}_"
+        f"{date.today().strftime('%Y%m%d')}.pdf"
+    )
 
     return send_file(
         buffer,
@@ -853,6 +983,32 @@ def patient_csv(person_id):
         as_attachment=True,
         download_name=filename,
     )
+
+
+@app.route("/patient/search")
+@login_required
+def patient_search():
+    people = db.get_people_objects(user_id())
+    query = request.args.get("q", "").strip()
+    selected_id = _patient_id_from_search(query)
+
+    person = next((p for p in people if p.person_id == selected_id), None)
+    if person is None:
+        matches = [
+            p for p in people
+            if p.get_name().casefold() == query.casefold()
+        ]
+        if len(matches) == 1:
+            person = matches[0]
+        elif len(matches) > 1:
+            flash("More than one patient has that name. Choose a patient from the suggestions.", "error")
+            return redirect(url_for("manage_people"))
+    if person is None:
+        flash("No patient matched that search.", "error")
+        return redirect(url_for("dashboard"))
+    if request.args.get("destination") == "dashboard":
+        return redirect(url_for("dashboard", person_id=person.person_id))
+    return redirect(url_for("patient_detail", person_id=person.person_id))
 
 
 def _filtered_records(person_id, period):

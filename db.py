@@ -112,6 +112,34 @@ def create_person(user_id, name, age=45, gender="Unspecified"):
     return new_p.to_dict()
 
 
+def update_person(user_id, person_id, name, age, gender):
+    payload = {"name": name, "age": int(age), "gender": gender}
+    if use_supabase and supabase:
+        try:
+            res = (
+                supabase.table("people")
+                .update(payload)
+                .eq("id", int(person_id))
+                .eq("user_id", str(user_id))
+                .select("id")
+                .execute()
+            )
+            if res.data:
+                return True
+        except Exception:
+            pass
+
+    people = store.load_people(user_id)
+    person = next((p for p in people if p.person_id == int(person_id)), None)
+    if not person:
+        return False
+    person.name = name
+    person.age = int(age)
+    person.gender = gender
+    store.save_user_people(user_id, people)
+    return True
+
+
 def get_or_create_person(user_id, name, age=45, gender="Unspecified"):
     name = name.strip()
     people = get_people(user_id)

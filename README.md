@@ -5,9 +5,9 @@ BPulse is a Flask web application for recording and reviewing blood pressure rea
 ## Features
 
 - Record systolic and diastolic blood pressure, pulse, date, time, and notes.
-- Manage patient profiles and medication schedules.
-- Review recent readings, search history, and view 7-day or 30-day trends.
-- Generate monthly summaries and download patient reports as PDF or CSV.
+- Manage patient profiles with separate first, middle, and last names, editable demographics, and medication schedules.
+- Search patient profiles throughout the app, search reading history across all patients, and view 7-day or 30-day trends.
+- Generate monthly summaries and export patient reports as PDF (with a 1-month default range and medication log) or CSV.
 - Get informational reading suggestions and chat with B-Pal. Without a Gemini API key, the app uses its built-in rule-based advice.
 - Use local JSON files for development, or configure Supabase for database and authentication services.
 

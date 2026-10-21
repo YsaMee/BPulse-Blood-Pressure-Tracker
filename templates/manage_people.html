@@ -27,9 +27,19 @@
     </div>
 
     <form method="POST" action="{{ url_for('add_person') }}" class="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs items-end">
-      <div class="sm:col-span-5">
-        <label class="font-bold text-slate-700 block mb-1">Patient Name *</label>
-        <input name="name" type="text" required placeholder="e.g. Eleanor Vance"
+      <div class="sm:col-span-2">
+        <label class="font-bold text-slate-700 block mb-1">First Name *</label>
+        <input name="first_name" type="text" required autocomplete="given-name"
+               class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80"/>
+      </div>
+      <div class="sm:col-span-2">
+        <label class="font-bold text-slate-700 block mb-1">Middle Name</label>
+        <input name="middle_name" type="text" autocomplete="additional-name"
+               class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80"/>
+      </div>
+      <div class="sm:col-span-2">
+        <label class="font-bold text-slate-700 block mb-1">Last Name *</label>
+        <input name="last_name" type="text" required autocomplete="family-name"
                class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80"/>
       </div>
       <div class="sm:col-span-2">
@@ -37,14 +47,16 @@
         <input name="age" type="number" min="1" max="120" value="50" required
                class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80"/>
       </div>
-      <div class="sm:col-span-3">
-        <label class="font-bold text-slate-700 block mb-1">Gender *</label>
-        <select name="gender"
-                class="w-full px-3.5 py-2.5 bg-slate-100 text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 border border-slate-200/80">
-          <option value="Male">Male</option>
-          <option value="Female">Female</option>
-          <option value="Other">Other</option>
-        </select>
+      <div class="sm:col-span-2">
+        <span class="font-bold text-slate-700 block mb-1">Gender</span>
+        <div class="flex flex-wrap gap-x-2 gap-y-1">
+          {% for option in ['Male', 'Female', 'Other', 'Unspecified'] %}
+            <label class="inline-flex items-center gap-1">
+              <input type="radio" name="gender" value="{{ option }}" {% if option == 'Male' %}checked{% endif %}/>
+              {{ option }}
+            </label>
+          {% endfor %}
+        </div>
       </div>
       <div class="sm:col-span-2">
         <button type="submit"
@@ -89,6 +101,42 @@
               <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Readings Logged</span>
               <div class="text-base font-extrabold text-sky-800">{{ item.record_count }}</div>
             </div>
+
+            <form id="edit-patient-{{ p.person_id }}" method="POST"
+                  action="{{ url_for('edit_person', person_id=p.person_id) }}"
+                  class="hidden grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-4 text-xs">
+              <div>
+                <label class="font-semibold text-slate-700 block mb-1">First Name *</label>
+                <input name="first_name" value="{{ item.name_parts.first }}" required
+                       class="w-full px-2.5 py-2 bg-slate-50 rounded-lg border border-slate-200"/>
+              </div>
+              <div>
+                <label class="font-semibold text-slate-700 block mb-1">Middle Name</label>
+                <input name="middle_name" value="{{ item.name_parts.middle }}"
+                       class="w-full px-2.5 py-2 bg-slate-50 rounded-lg border border-slate-200"/>
+              </div>
+              <div>
+                <label class="font-semibold text-slate-700 block mb-1">Last Name *</label>
+                <input name="last_name" value="{{ item.name_parts.last }}" required
+                       class="w-full px-2.5 py-2 bg-slate-50 rounded-lg border border-slate-200"/>
+              </div>
+              <div>
+                <label class="font-semibold text-slate-700 block mb-1">Age *</label>
+                <input name="age" type="number" min="1" max="120" value="{{ p.get_age() }}" required
+                       class="w-full px-2.5 py-2 bg-slate-50 rounded-lg border border-slate-200"/>
+              </div>
+              <div class="sm:col-span-2">
+                <label class="font-semibold text-slate-700 block mb-1">Gender</label>
+                <input name="gender" value="{{ p.get_gender() }}" placeholder="Gender"
+                       class="w-full px-2.5 py-2 bg-slate-50 rounded-lg border border-slate-200"/>
+              </div>
+              <div class="sm:col-span-2 flex justify-end gap-2">
+                <button type="button" onclick="togglePatientEdit('{{ p.person_id }}')"
+                        class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-semibold">Cancel</button>
+                <button type="submit"
+                        class="px-3 py-1.5 rounded-lg bg-sky-700 text-white font-semibold">Save Changes</button>
+              </div>
+            </form>
           </div>
 
           <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
@@ -96,6 +144,10 @@
                class="flex-1 py-1.5 px-3 bg-slate-100 hover:bg-sky-50 hover:text-sky-700 text-slate-700 text-center rounded-xl text-xs font-bold transition-colors">
               View Profile
             </a>
+            <button type="button" onclick="togglePatientEdit('{{ p.person_id }}')"
+                    class="py-1.5 px-3 bg-sky-50 text-sky-800 hover:bg-sky-100 rounded-xl text-xs font-bold transition-colors">
+              Edit
+            </button>
             <form method="POST" action="{{ url_for('delete_person', person_id=p.person_id) }}"
                   onsubmit="return confirm('Delete {{ p.get_name() }} and all associated blood pressure records?');">
               <button type="submit"
@@ -110,4 +162,10 @@
   {% endif %}
 
 </div>
+<script>
+  function togglePatientEdit(personId) {
+    const form = document.getElementById('edit-patient-' + personId);
+    form.classList.toggle('hidden');
+  }
+</script>
 {% endblock %}

@@ -111,7 +111,7 @@
         <div>
           <h3 class="font-semibold text-slate-900 text-lg">Blood Pressure Trend</h3>
           <p class="text-xs text-slate-500">
-            Interactive tracking curve &bull; <span class="text-sky-600 font-medium">Hover for details; click a point to select it for advice</span>
+            Blue is systolic; amber is diastolic. Hover for details; click a point for advice.
           </p>
         </div>
       </div>
@@ -171,6 +171,15 @@
       </div>
     </div>
 
+    <div class="flex flex-wrap items-center gap-4 mb-2 text-xs font-semibold" aria-label="Graph legend">
+      <span class="inline-flex items-center gap-2 text-blue-700">
+        <span class="w-5 h-0.5 bg-blue-600"></span>Systolic (SYS)
+      </span>
+      <span class="inline-flex items-center gap-2 text-amber-700">
+        <span class="w-5 h-0.5 bg-amber-600"></span>Diastolic (DIA)
+      </span>
+    </div>
+
     <!-- Chart Canvas Container with Floating Dynamic Tooltip -->
     <div class="relative w-full overflow-x-auto select-none mt-2" id="chart-container">
       
@@ -185,7 +194,7 @@
           <div class="flex items-baseline gap-1">
             <span id="tt-sys" class="text-sky-400 font-extrabold text-base">—</span>
             <span class="text-slate-400">/</span>
-            <span id="tt-dia" class="text-teal-400 font-extrabold text-base">—</span>
+            <span id="tt-dia" class="text-amber-400 font-extrabold text-base">—</span>
             <span class="text-slate-400 text-[10px] ml-0.5">mmHg</span>
           </div>
           <div class="text-[11px] text-rose-300 flex items-center gap-0.5">
@@ -238,14 +247,13 @@
         <!-- Dynamic Vertical Guide Line (Follows mouse on hover) -->
         <line id="hoverGuideLine" x1="170" y1="25" x2="170" y2="235" stroke="#0284c7" stroke-dasharray="3,3" stroke-width="1.5" opacity="0.6"/>
 
-        <!-- Pulse Curve (Red dashed wave at the bottom) -->
-        <!-- Systolic Curve (Blue #0284c7) -->
+        <!-- Systolic Curve -->
           <path id="systolicTrendLine" d=""
-              fill="none" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round"/>
+              fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
 
-        <!-- Diastolic Curve (Teal #0d9488) -->
+        <!-- Diastolic Curve -->
           <path id="diastolicTrendLine" d=""
-              fill="none" stroke="#0d9488" stroke-width="2.5" stroke-linecap="round"/>
+              fill="none" stroke="#d97706" stroke-width="3" stroke-linecap="round" stroke-dasharray="7 4"/>
 
         <g id="interactivePoints"></g>
 
@@ -263,7 +271,7 @@
         <div class="flex items-center gap-1.5">
           <span id="ribbon-read-sys" class="text-sky-400 font-extrabold text-sm">{{ latest.get_systolic() if latest else '—' }}</span>
           <span class="text-slate-400 font-normal"> / </span>
-          <span id="ribbon-read-dia" class="text-teal-400 font-extrabold text-sm">{{ latest.get_diastolic() if latest else '—' }}</span>
+          <span id="ribbon-read-dia" class="text-amber-400 font-extrabold text-sm">{{ latest.get_diastolic() if latest else '—' }}</span>
           <span class="text-slate-400 text-[11px] ml-0.5">mmHg</span>
         </div>
         <span class="text-slate-600 hidden sm:inline">|</span>
@@ -385,25 +393,14 @@
 
         <div class="sm:col-span-3">
           <label class="font-bold text-slate-700 block mb-1">Frequency</label>
-          <select name="frequency"
-                  class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500">
-            <option value="Once daily">Once daily</option>
-            <option value="Twice daily">Twice daily</option>
-            <option value="Every morning">Every morning</option>
-            <option value="Before bed">Before bed</option>
-            <option value="As needed (PRN)">As needed (PRN)</option>
-          </select>
+          <input name="frequency" type="text" value="Once daily"
+                 class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
         </div>
 
         <div class="sm:col-span-3">
           <label class="font-bold text-slate-700 block mb-1">Schedule / Time</label>
-          <select name="time_of_day"
-                  class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500">
-            <option value="Morning (08:00 AM)">Morning (08:00 AM)</option>
-            <option value="Noon (12:00 PM)">Noon (12:00 PM)</option>
-            <option value="Evening (08:00 PM)">Evening (08:00 PM)</option>
-            <option value="Bedtime (10:00 PM)">Bedtime (10:00 PM)</option>
-          </select>
+          <input name="time_of_day" type="text" value="Morning (08:00 AM)"
+                 class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
         </div>
 
         <div class="sm:col-span-9">
@@ -873,7 +870,7 @@
       systolicDot.setAttribute('cx', position.x);
       systolicDot.setAttribute('cy', position.systolicY);
       systolicDot.setAttribute('r', '5');
-      systolicDot.setAttribute('fill', '#0284c7');
+      systolicDot.setAttribute('fill', '#2563eb');
       systolicDot.setAttribute('stroke', '#ffffff');
       systolicDot.setAttribute('stroke-width', '2');
       group.appendChild(systolicDot);
@@ -882,7 +879,7 @@
       diastolicDot.setAttribute('cx', position.x);
       diastolicDot.setAttribute('cy', position.diastolicY);
       diastolicDot.setAttribute('r', '4.5');
-      diastolicDot.setAttribute('fill', '#0d9488');
+      diastolicDot.setAttribute('fill', '#d97706');
       diastolicDot.setAttribute('stroke', '#ffffff');
       diastolicDot.setAttribute('stroke-width', '2');
       group.appendChild(diastolicDot);
@@ -1177,7 +1174,7 @@
     if (typing) typing.classList.remove('hidden');
 
     try {
-      const activePersonId = document.getElementById('patientSelect') ? document.getElementById('patientSelect').value : '1';
+      const activePersonId = '{{ curr_p.person_id if curr_p else 1 }}';
       const response = await fetch(`/api/bpal/chat?person_id=${activePersonId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
