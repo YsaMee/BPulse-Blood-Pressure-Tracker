@@ -63,6 +63,22 @@ class BloodPressureRecord:
             return "Elevated"
         return "Normal"
 
+    def get_bp_category_explanation(self):
+        category = self.get_bp_category()
+        if category == "Stage 1 Hypertension":
+            if self.systolic >= 130:
+                return f"Systolic {self.systolic} meets Stage 1 range (130-139)."
+            return f"Diastolic {self.diastolic} meets Stage 1 range (80-89)."
+        if category == "Stage 2 Hypertension":
+            if self.systolic >= 140:
+                return f"Systolic {self.systolic} meets Stage 2 threshold (140 or higher)."
+            return f"Diastolic {self.diastolic} meets Stage 2 threshold (90 or higher)."
+        if category == "Crisis":
+            if self.systolic > 180:
+                return f"Systolic {self.systolic} is above 180."
+            return f"Diastolic {self.diastolic} is above 120."
+        return ""
+
     def to_dict(self):
         d_str = self.record_date.isoformat() if hasattr(self.record_date, "isoformat") else str(self.record_date)
         t_str = self.record_time.strftime("%H:%M:%S") if hasattr(self.record_time, "strftime") else str(self.record_time)

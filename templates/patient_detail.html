@@ -115,6 +115,9 @@
                     {% else %}bg-secondary-container text-on-secondary-container{% endif %}">
                     {{ r.get_bp_category() }}
                   </span>
+                  {% if r.get_bp_category_explanation() %}
+                    <p class="mt-1 text-[10px] leading-snug text-on-surface-variant">{{ r.get_bp_category_explanation() }}</p>
+                  {% endif %}
                 </td>
                 <td class="py-3 pr-4 text-xs text-on-surface-variant">{{ r.get_notes() or "—" }}</td>
                 <td class="py-3 text-right whitespace-nowrap">

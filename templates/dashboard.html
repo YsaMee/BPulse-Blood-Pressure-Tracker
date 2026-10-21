@@ -42,6 +42,11 @@
           {% if latest %}{{ latest.get_bp_category() }}{% else %}—{% endif %}
         </span>
       </div>
+      {% if latest and latest.get_bp_category_explanation() %}
+        <p class="mt-1 text-[10px] leading-snug text-slate-500">
+          {{ latest.get_bp_category_explanation() }} Either number can determine the category; one reading is not a diagnosis.
+        </p>
+      {% endif %}
     </div>
 
     <!-- Card 2: 30-Day Average -->
@@ -622,6 +627,9 @@
                     {% else %}bg-purple-50 text-purple-700 border border-purple-200{% endif %}">
                     {{ cat }}
                   </span>
+                  {% if r.get_bp_category_explanation() %}
+                    <p class="mt-1 text-[10px] leading-snug text-slate-500">{{ r.get_bp_category_explanation() }}</p>
+                  {% endif %}
                 </td>
                 <td class="py-3 px-3 text-slate-500 max-w-xs truncate">
                   {{ r.get_notes() or 'Routine check' }}

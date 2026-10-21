@@ -60,6 +60,9 @@
                     {% else %}bg-secondary-container text-on-secondary-container{% endif %}">
                     {{ record.get_bp_category() }}
                   </span>
+                  {% if record.get_bp_category_explanation() %}
+                    <p class="mt-1 text-[10px] leading-snug text-on-surface-variant">{{ record.get_bp_category_explanation() }}</p>
+                  {% endif %}
                 </td>
                 <td class="py-3.5 px-4 text-on-surface-variant max-w-xs">{{ record.get_notes() or "—" }}</td>
                 <td class="py-3.5 px-4 text-right whitespace-nowrap">

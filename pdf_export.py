@@ -234,12 +234,12 @@ def build_patient_pdf(
         Paragraph("<b>Guideline Recommendation</b>", cell),
     ]]
     cat_guide = {
-        "Normal": "Optimal range (<120/<80). Sustain balanced nutrition & activity.",
-        "Elevated": "Early elevation (120-129/<80). Reduce dietary sodium.",
-        "Stage 1 Hypertension": "Stage 1 HTN (130-139/80-89). Lifestyle & clinical checkup within 1 mo.",
-        "Stage 2 Hypertension": "Stage 2 HTN (>=140/>=90). Clinical evaluation within 1-2 days.",
-        "Crisis": "Emergency (>180/>120). Seek urgent care if symptomatic.",
-        "Hypertensive Crisis": "Emergency (>180/>120). Seek urgent care if symptomatic.",
+        "Normal": "Both numbers are below threshold (<120 AND <80).",
+        "Elevated": "Systolic 120-129 AND diastolic <80.",
+        "Stage 1 Hypertension": "Systolic 130-139 OR diastolic 80-89; either number can qualify.",
+        "Stage 2 Hypertension": "Systolic >=140 OR diastolic >=90; either number can qualify.",
+        "Crisis": "Systolic >180 OR diastolic >120; seek emergency guidance.",
+        "Hypertensive Crisis": "Systolic >180 OR diastolic >120; seek emergency guidance.",
     }
     for cat in ordered_cats:
         count = cat_counts[cat]

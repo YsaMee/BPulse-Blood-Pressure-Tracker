@@ -28,11 +28,12 @@ SYSTEM_PROMPT = """You are a clinical health advisor specializing in cardiovascu
 You provide evidence-based, non-prescriptive lifestyle recommendations following American Heart Association (AHA/ACC) guidelines.
 
 CLINICAL CRITERIA:
-- Normal: <120/<80 mmHg
-- Elevated: 120-129/<80 mmHg
-- Stage 1 Hypertension: 130-139 / 80-89 mmHg
-- Stage 2 Hypertension: >=140 / >=90 mmHg
-- Hypertensive Crisis: >180 and/or >120 mmHg (Emergency evaluation)
+- Normal: systolic <120 AND diastolic <80 mmHg
+- Elevated: systolic 120-129 AND diastolic <80 mmHg
+- Stage 1 Hypertension: systolic 130-139 OR diastolic 80-89 mmHg
+- Stage 2 Hypertension: systolic >=140 OR diastolic >=90 mmHg
+- Hypertensive Crisis: systolic >180 OR diastolic >120 mmHg (Emergency evaluation)
+- For categories with an OR rule, either number can qualify the reading; do not require both numbers to be in the category range.
 
 IMPORTANT RULES:
 - Never diagnose medical conditions or prescribe specific pharmaceutical dosages.
@@ -176,7 +177,7 @@ def _fallback(category, systolic=120, diastolic=80, reason=""):
             "when_to_seek_help": "Recheck in 3 to 6 months and review at your next regular visit.",
         },
         "Stage 1 Hypertension": {
-            "summary": f"Reading of {systolic}/{diastolic} mmHg falls in Stage 1 Hypertension (130-139 / 80-89 mmHg). Structured lifestyle modifications are recommended.",
+            "summary": f"Reading of {systolic}/{diastolic} mmHg falls in the Stage 1 range because systolic is 130-139 or diastolic is 80-89 mmHg. A single reading does not diagnose hypertension.",
             "urgency": "soon",
             "suggestions": [
                 {"title": "DASH Diet Adoption", "detail": "Increase potassium-rich vegetables, fruits, whole grains, and low-fat dairy.", "category": "diet"},
@@ -188,7 +189,7 @@ def _fallback(category, systolic=120, diastolic=80, reason=""):
             "when_to_seek_help": "Consult your primary healthcare provider within 1 month.",
         },
         "Stage 2 Hypertension": {
-            "summary": f"Reading of {systolic}/{diastolic} mmHg reflects Stage 2 Hypertension (>=140 / >=90 mmHg). Prompt clinical follow-up and active management are indicated.",
+            "summary": f"Reading of {systolic}/{diastolic} mmHg falls in the Stage 2 range because systolic is >=140 or diastolic is >=90 mmHg. Repeated readings should be discussed with a healthcare professional.",
             "urgency": "urgent",
             "suggestions": [
                 {"title": "Contact Primary Clinic", "detail": "Schedule an appointment with your healthcare provider within 24-48 hours.", "category": "monitoring"},
