@@ -313,8 +313,11 @@ def dashboard():
 
     # Compute 7-day trend data
     today = date.today()
-    seven_days_ago = today - timedelta(days=7)
-    records_7 = [r for r in records if getattr(r, 'record_date', getattr(r, 'date', today)) >= seven_days_ago]
+    seven_days_ago = today - timedelta(days=6)
+    records_7 = [
+        r for r in records
+        if seven_days_ago <= getattr(r, 'record_date', getattr(r, 'date', today)) <= today
+    ]
     chart_labels_7 = [
         datetime.combine(
             getattr(r, 'record_date', getattr(r, 'date', today)),
@@ -324,6 +327,12 @@ def dashboard():
     ]
     chart_systolic_7 = [r.get_systolic() for r in records_7]
     chart_diastolic_7 = [r.get_diastolic() for r in records_7]
+    avg_sys_7 = round(
+        sum(r.get_systolic() for r in records_7) / len(records_7), 1
+    ) if records_7 else 0
+    avg_dia_7 = round(
+        sum(r.get_diastolic() for r in records_7) / len(records_7), 1
+    ) if records_7 else 0
 
     def chart_point(record):
         reading_date = getattr(record, 'record_date', getattr(record, 'date', today))
@@ -381,6 +390,9 @@ def dashboard():
         names=names,
         avg_sys=avg_sys,
         avg_dia=avg_dia,
+        avg_sys_7=avg_sys_7,
+        avg_dia_7=avg_dia_7,
+        records_7_count=len(records_7),
         avg_pulse=avg_pulse,
         chart_labels_7=chart_labels_7,
         chart_systolic_7=chart_systolic_7,

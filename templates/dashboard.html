@@ -28,7 +28,7 @@
   {% endif %}
 
   <!-- ====================================================================== -->
-  <!-- 1. FOUR SUMMARY SCORECARDS                                            -->
+  <!-- 1. SUMMARY SCORECARDS                                                 -->
   <!-- ====================================================================== -->
   {% set total_recs = records|length %}
   {% set normal_recs = [] %}
@@ -41,7 +41,7 @@
   {% set normal_percent = (normal_count / total_recs * 100)|round|int if total_recs > 0 else 0 %}
   {% set avg_map = ((2 * avg_dia + avg_sys) / 3)|round|int if total_recs > 0 else none %}
 
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+  <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
     
     <!-- Card 1: Latest Reading -->
     <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -87,7 +87,24 @@
       </div>
     </div>
 
-    <!-- Card 3: Resting Pulse -->
+    <!-- Card 3: 7-Day Average -->
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">7-Day Average</span>
+        <span class="material-symbols-outlined text-sm text-indigo-600">calendar_view_week</span>
+      </div>
+      <div class="mt-2 flex items-baseline gap-1">
+        <span class="text-2xl font-extrabold text-slate-900">
+          {% if records_7_count %}{{ avg_sys_7|int }}/{{ avg_dia_7|int }}{% else %}—{% endif %}
+        </span>
+        <span class="text-xs text-slate-400">mmHg</span>
+      </div>
+      <div class="mt-1 text-[11px] text-indigo-700 font-medium">
+        {% if records_7_count %}{{ records_7_count }} readings in the past 7 days{% else %}No readings in the past 7 days{% endif %}
+      </div>
+    </div>
+
+    <!-- Card 4: Resting Pulse -->
     <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
       <div class="flex items-center justify-between">
         <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Resting Pulse</span>
@@ -104,7 +121,7 @@
       </div>
     </div>
 
-    <!-- Card 4: AHA Normal Rate -->
+    <!-- Card 5: AHA Normal Rate -->
     <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
       <div class="flex items-center justify-between">
         <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">AHA Normal Rate</span>
