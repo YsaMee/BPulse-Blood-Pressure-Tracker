@@ -737,7 +737,7 @@
 
 <!-- Floating Chat Drawer / Window -->
 <div id="bpalChatWindow"
-     class="hidden fixed bottom-20 right-6 z-50 w-[380px] max-w-[calc(100vw-2rem)] h-[540px] max-h-[calc(100vh-6rem)] bg-white rounded-2xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+     class="hidden fixed bottom-20 right-6 z-50 w-[380px] max-w-[calc(100vw-2rem)] h-[540px] max-h-[calc(100dvh-6rem)] bg-white rounded-2xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
   
   <!-- Window Header -->
   <div class="bg-gradient-to-r from-slate-900 to-sky-950 text-white p-3.5 flex items-center justify-between shadow-xs">
@@ -772,7 +772,7 @@
   </div>
 
   <!-- Chat Messages Stream -->
-  <div id="bpalMessages" class="flex-1 min-h-0 p-3.5 space-y-3 overflow-y-auto text-xs bg-[#faf8ff]">
+  <div id="bpalMessages" class="flex-1 min-h-0 p-3.5 space-y-3 overflow-y-auto overscroll-contain text-xs bg-[#faf8ff]">
     <!-- Greeting message from B-Pal -->
     <div class="flex items-start gap-2">
       <div class="w-6 h-6 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
@@ -1174,7 +1174,9 @@
   function scrollToBPalBottom() {
     const msgBox = document.getElementById('bpalMessages');
     if (msgBox) {
-      msgBox.scrollTop = msgBox.scrollHeight;
+      requestAnimationFrame(function () {
+        msgBox.scrollTop = msgBox.scrollHeight;
+      });
     }
   }
 
