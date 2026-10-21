@@ -409,12 +409,45 @@ def medication_add():
     person_id = request.form.get("person_id") or 1
     name = request.form.get("name", "").strip()
     dosage = request.form.get("dosage", "10mg").strip()
-    frequency = request.form.get("frequency", "Once daily").strip()
+    schedule_type = request.form.get("schedule_type", "scheduled")
     time_of_day = request.form.get("time_of_day", "Morning (08:00 AM)").strip()
     instructions = request.form.get("instructions", "").strip()
-    if name:
-        db.add_medication(person_id, name, dosage, frequency, time_of_day, instructions)
-        flash(f"Medication '{name} {dosage}' added to schedule.", "success")
+    if not name or not dosage:
+        flash("Enter a medication name and dose amount.", "error")
+        return redirect(url_for("dashboard", person_id=person_id))
+    if schedule_type not in ("scheduled", "as_needed"):
+        flash("Choose whether this medication is scheduled or taken as needed.", "error")
+        return redirect(url_for("dashboard", person_id=person_id))
+
+    doses_per_day = 0
+    frequency = "As needed (PRN)"
+    if schedule_type == "scheduled":
+        try:
+            doses_per_day = int(request.form.get("doses_per_day", "1"))
+        except ValueError:
+            flash("Enter a valid number of scheduled doses per day.", "error")
+            return redirect(url_for("dashboard", person_id=person_id))
+        if not 1 <= doses_per_day <= 24:
+            flash("Scheduled doses per day must be between 1 and 24.", "error")
+            return redirect(url_for("dashboard", person_id=person_id))
+        frequency = {
+            1: "Once daily",
+            2: "Twice daily",
+            3: "Three times daily",
+            4: "Four times daily",
+        }.get(doses_per_day, f"{doses_per_day} times daily")
+
+    db.add_medication(
+        person_id,
+        name,
+        dosage,
+        frequency,
+        time_of_day,
+        instructions,
+        doses_per_day,
+        schedule_type,
+    )
+    flash(f"Medication '{name} {dosage}' added to schedule.", "success")
     return redirect(url_for("dashboard", person_id=person_id))
 
 
@@ -422,7 +455,10 @@ def medication_add():
 @login_required
 def medication_toggle(med_id):
     person_id = request.args.get("person_id")
-    db.toggle_medication(med_id)
+    action = request.form.get("action", "log")
+    updated = db.toggle_medication(med_id, action)
+    if not updated and action == "log":
+        flash("All scheduled doses for this medication have already been logged today.", "info")
     return redirect(url_for("dashboard", person_id=person_id) if person_id else url_for("dashboard"))
 
 

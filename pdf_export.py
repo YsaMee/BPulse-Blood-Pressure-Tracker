@@ -129,9 +129,14 @@ def build_patient_pdf(
             Paragraph("<b>Instructions</b>", cell),
         ]]
         for medication in medication_rows:
-            status = "Taken today" if medication.get("taken_today") else "Pending"
+            doses_taken = medication.get("doses_taken_today", int(bool(medication.get("taken_today"))))
+            if medication.get("is_scheduled", True):
+                target = medication.get("doses_per_day", 1)
+                status = f"{doses_taken} of {target} doses today"
+            else:
+                status = f"{doses_taken} doses logged today (as needed)"
             taken_at = medication.get("taken_at")
-            if medication.get("taken_today") and taken_at:
+            if doses_taken and taken_at:
                 status += f" ({taken_at})"
             medication_data.append([
                 _p(medication.get("name", ""), cell),

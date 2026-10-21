@@ -327,8 +327,13 @@
     </div>
 
     <!-- Quick Adherence Summary Bar -->
-    {% set taken_count = medications|selectattr('taken_today')|list|length %}
-    {% set total_meds = medications|length %}
+    {% set adherence = namespace(taken=0, target=0) %}
+    {% for medication in medications %}
+      {% if medication.is_scheduled %}
+        {% set adherence.taken = adherence.taken + medication.doses_taken_today %}
+        {% set adherence.target = adherence.target + medication.doses_per_day %}
+      {% endif %}
+    {% endfor %}
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-4">
       <div class="bg-emerald-50/70 rounded-xl p-3 border border-emerald-100/80 flex items-center gap-3">
         <div class="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold">
@@ -337,7 +342,7 @@
         <div>
           <span class="text-[11px] font-medium text-emerald-700 uppercase tracking-wider block">Today's Adherence</span>
           <span class="text-sm font-extrabold text-emerald-950">
-            {{ taken_count }} of {{ total_meds }} Medications Logged
+            {{ adherence.taken }} of {{ adherence.target }} Scheduled Doses Logged
           </span>
         </div>
       </div>
@@ -349,7 +354,7 @@
         <div>
           <span class="text-[11px] font-medium text-sky-700 uppercase tracking-wider block">Medication Tracking</span>
           <span class="text-xs font-bold text-sky-950">
-            Mark doses to update today's summary
+            Log each scheduled dose as you take it
           </span>
         </div>
       </div>
@@ -361,7 +366,7 @@
         <div>
           <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">Today's Compliance</span>
           <span class="text-sm font-extrabold text-slate-800">
-            {% if total_meds %}{{ (taken_count * 100 // total_meds) }}%{% else %}—{% endif %}
+            {% if adherence.target %}{{ (adherence.taken * 100 // adherence.target) }}%{% else %}—{% endif %}
           </span>
         </div>
       </div>
@@ -386,24 +391,33 @@
         </div>
 
         <div class="sm:col-span-2">
-          <label class="font-bold text-slate-700 block mb-1">Dosage *</label>
-          <input name="dosage" type="text" required placeholder="e.g. 5mg"
+          <label class="font-bold text-slate-700 block mb-1">Dose Amount *</label>
+          <input name="dosage" type="text" required placeholder="e.g. 5 mL"
                  class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
         </div>
 
         <div class="sm:col-span-3">
-          <label class="font-bold text-slate-700 block mb-1">Frequency</label>
-          <input name="frequency" type="text" value="Once daily"
+          <label class="font-bold text-slate-700 block mb-1">Dose Schedule</label>
+          <select name="schedule_type" id="medicationScheduleType" onchange="updateMedicationScheduleFields(this.value)"
+                  class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500">
+            <option value="scheduled" selected>Scheduled daily doses</option>
+            <option value="as_needed">As needed (PRN)</option>
+          </select>
+        </div>
+
+        <div class="sm:col-span-3" id="dosesPerDayField">
+          <label class="font-bold text-slate-700 block mb-1">Doses per day</label>
+          <input name="doses_per_day" id="medicationDosesPerDay" type="number" min="1" max="24" value="1" required
                  class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
         </div>
 
-        <div class="sm:col-span-3">
-          <label class="font-bold text-slate-700 block mb-1">Schedule / Time</label>
-          <input name="time_of_day" type="text" value="Morning (08:00 AM)"
+        <div class="sm:col-span-4">
+          <label class="font-bold text-slate-700 block mb-1">Time(s) / Schedule Notes</label>
+          <input name="time_of_day" type="text" value="Morning (08:00 AM)" placeholder="e.g. Morning and evening"
                  class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
         </div>
 
-        <div class="sm:col-span-9">
+        <div class="sm:col-span-5">
           <label class="font-bold text-slate-700 block mb-1">Instructions / Notes</label>
           <input name="instructions" type="text" placeholder="e.g. Take with water after breakfast"
                  class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
@@ -423,44 +437,64 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         {% for med in medications %}
           <div class="rounded-2xl p-4 border transition-all flex flex-col justify-between
-                      {% if med.taken_today %}bg-emerald-50/40 border-emerald-200/80 shadow-2xs{% else %}bg-slate-50/60 border-slate-200 hover:border-slate-300{% endif %}">
+                      {% if med.complete_today %}bg-emerald-50/40 border-emerald-200/80 shadow-2xs{% else %}bg-slate-50/60 border-slate-200 hover:border-slate-300{% endif %}">
             <div>
               <div class="flex items-start justify-between gap-3 mb-2">
                 <div class="flex items-center gap-2.5">
                   <div class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm
-                              {% if med.taken_today %}bg-emerald-500 text-white{% else %}bg-slate-200 text-slate-700{% endif %}">
+                              {% if med.complete_today %}bg-emerald-500 text-white{% else %}bg-slate-200 text-slate-700{% endif %}">
                     <span class="material-symbols-outlined text-sm">
-                      {% if med.taken_today %}check{% else %}pill{% endif %}
+                      {% if med.complete_today %}check{% else %}pill{% endif %}
                     </span>
                   </div>
                   <div>
                     <h4 class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
                       <span>{{ med.name }}</span>
                       <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700">
-                        {{ med.dosage }}
+                        {{ med.dosage }} / dose
                       </span>
                     </h4>
                     <span class="text-[11px] text-slate-500 block">
-                      {{ med.frequency }} &bull; {{ med.time_of_day }}
+                      {% if med.is_scheduled %}{{ med.doses_per_day }} scheduled dose{% if med.doses_per_day != 1 %}s{% endif %} per day{% else %}As needed{% endif %}
+                      &bull; {{ med.time_of_day }}
                     </span>
                   </div>
                 </div>
 
                 <!-- Status pill -->
                 <div>
-                  {% if med.taken_today %}
+                  {% if med.is_scheduled and med.complete_today %}
                     <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                       <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                      Taken Today {% if med.taken_at %}({{ med.taken_at }}){% endif %}
+                      Daily target complete
                     </span>
                   {% else %}
                     <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
                       <span class="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
-                      Pending Dose
+                      {% if med.is_scheduled %}{{ med.doses_taken_today }} / {{ med.doses_per_day }} doses today{% else %}{{ med.doses_taken_today }} doses logged today{% endif %}
                     </span>
                   {% endif %}
                 </div>
               </div>
+
+              {% if med.is_scheduled %}
+                <div class="mb-3">
+                  <div class="flex justify-between text-[10px] font-semibold text-slate-500 mb-1">
+                    <span>Today's doses</span>
+                    <span>{{ med.doses_taken_today }} / {{ med.doses_per_day }}</span>
+                  </div>
+                  <div class="h-1.5 rounded-full bg-slate-200 overflow-hidden" role="progressbar"
+                       aria-label="Today's medication doses" aria-valuemin="0" aria-valuemax="{{ med.doses_per_day }}"
+                       aria-valuenow="{{ med.doses_taken_today }}">
+                    <div class="h-full rounded-full bg-emerald-500 transition-all"
+                         style="width: {{ [100, (med.doses_taken_today * 100 // med.doses_per_day)]|min }}%"></div>
+                  </div>
+                </div>
+              {% endif %}
+
+              {% if med.taken_at %}
+                <p class="text-[10px] text-slate-500 mb-2">Last dose logged today at {{ med.taken_at }}</p>
+              {% endif %}
 
               {% if med.instructions %}
                 <p class="text-[11px] text-slate-600 bg-white/70 p-2 rounded-lg border border-slate-100 mb-3">
@@ -473,21 +507,26 @@
             <div class="flex items-center justify-end pt-2.5 border-t border-slate-200/60 mt-2">
 
               <div class="flex items-center gap-2">
-                <!-- Toggle Taken/Undo Form -->
+                {% if med.doses_taken_today > 0 %}
                 <form method="POST" action="{{ url_for('medication_toggle', med_id=med.id, person_id=(curr_p.person_id if curr_p else 1)) }}">
-                  {% if med.taken_today %}
-                    <button type="submit"
-                            class="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 transition-colors">
-                      Undo
-                    </button>
-                  {% else %}
-                    <button type="submit"
-                            class="px-3 py-1 rounded-lg text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors flex items-center gap-1">
-                      <span class="material-symbols-outlined text-xs">done</span>
-                      <span>Mark as Taken</span>
-                    </button>
-                  {% endif %}
+                  <input type="hidden" name="action" value="undo"/>
+                  <button type="submit"
+                          class="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 transition-colors">
+                    Undo last dose
+                  </button>
                 </form>
+                {% endif %}
+
+                {% if not med.is_scheduled or med.doses_taken_today < med.doses_per_day %}
+                <form method="POST" action="{{ url_for('medication_toggle', med_id=med.id, person_id=(curr_p.person_id if curr_p else 1)) }}">
+                  <input type="hidden" name="action" value="log"/>
+                  <button type="submit"
+                          class="px-3 py-1 rounded-lg text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-colors flex items-center gap-1">
+                    <span class="material-symbols-outlined text-xs">done</span>
+                    <span>Log dose</span>
+                  </button>
+                </form>
+                {% endif %}
 
                 <!-- Delete Medication -->
                 <form method="POST" action="{{ url_for('medication_delete', med_id=med.id, person_id=(curr_p.person_id if curr_p else 1)) }}"
@@ -888,6 +927,22 @@
       drawer.classList.toggle('hidden');
     }
   }
+
+  function updateMedicationScheduleFields(scheduleType) {
+    const dosesField = document.getElementById('dosesPerDayField');
+    const dosesInput = document.getElementById('medicationDosesPerDay');
+    const isScheduled = scheduleType === 'scheduled';
+    if (dosesField) dosesField.classList.toggle('hidden', !isScheduled);
+    if (dosesInput) {
+      dosesInput.required = isScheduled;
+      dosesInput.disabled = !isScheduled;
+    }
+  }
+
+  const medicationScheduleSelector = document.getElementById('medicationScheduleType');
+  updateMedicationScheduleFields(
+    medicationScheduleSelector ? medicationScheduleSelector.value : 'scheduled'
+  );
 
   // 2. View Switcher: Week vs Month
   function setTimeframe(mode) {

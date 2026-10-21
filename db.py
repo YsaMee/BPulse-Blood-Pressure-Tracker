@@ -405,12 +405,30 @@ def get_medications_for_person(person_id):
     return store.load_medications_for_person(person_id)
 
 
-def add_medication(person_id, name, dosage="10mg", frequency="Once daily", time_of_day="Morning (08:00 AM)", instructions=""):
-    return store.add_medication(person_id, name, dosage, frequency, time_of_day, instructions)
+def add_medication(
+    person_id,
+    name,
+    dosage="10mg",
+    frequency="Once daily",
+    time_of_day="Morning (08:00 AM)",
+    instructions="",
+    doses_per_day=1,
+    schedule_type="scheduled",
+):
+    return store.add_medication(
+        person_id,
+        name,
+        dosage,
+        frequency,
+        time_of_day,
+        instructions,
+        doses_per_day,
+        schedule_type,
+    )
 
 
-def toggle_medication(med_id):
-    return store.toggle_medication(med_id)
+def toggle_medication(med_id, action="log"):
+    return store.toggle_medication(med_id, action)
 
 
 def delete_medication(med_id):
