@@ -75,10 +75,20 @@
       <p class="text-xs mt-1">Use the form above to create your first patient profile.</p>
     </div>
   {% else %}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="relative max-w-md">
+      <label class="sr-only" for="manage-patient-search">Search patient profiles</label>
+      <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
+      <input id="manage-patient-search" type="search" placeholder="Search patient profiles..."
+             autocomplete="off"
+             class="w-full pl-10 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl shadow-xs text-xs focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+    </div>
+    <p id="manage-patient-empty" class="hidden text-xs text-slate-500">No patient profiles match your search.</p>
+
+    <div id="manage-patient-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {% for item in people_info %}
         {% set p = item.person %}
-        <div class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200/80 flex flex-col justify-between hover:border-slate-300 transition-all">
+        <div data-patient-card data-search="{{ p.get_name() }} {{ p.get_age() }} {{ p.get_gender() }} BP-{{ p.person_id }}"
+             class="bg-white rounded-2xl p-5 shadow-xs border border-slate-200/80 flex flex-col justify-between hover:border-slate-300 transition-all">
           <div>
             <div class="flex items-center gap-3 mb-3">
               <div class="w-10 h-10 rounded-xl bg-sky-100 text-sky-800 flex items-center justify-center font-bold text-sm">
@@ -163,6 +173,21 @@
 
 </div>
 <script>
+  const patientSearch = document.getElementById('manage-patient-search');
+  if (patientSearch) {
+    patientSearch.addEventListener('input', function () {
+      const query = patientSearch.value.trim().toLocaleLowerCase();
+      const cards = Array.from(document.querySelectorAll('[data-patient-card]'));
+      let visibleCount = 0;
+      cards.forEach(function (card) {
+        const matches = card.dataset.search.toLocaleLowerCase().includes(query);
+        card.classList.toggle('hidden', !matches);
+        if (matches) visibleCount += 1;
+      });
+      document.getElementById('manage-patient-empty').classList.toggle('hidden', visibleCount > 0);
+    });
+  }
+
   function togglePatientEdit(personId) {
     const form = document.getElementById('edit-patient-' + personId);
     form.classList.toggle('hidden');
