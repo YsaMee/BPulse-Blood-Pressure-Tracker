@@ -572,6 +572,11 @@
                   {{ r.get_notes() or 'Routine check' }}
                 </td>
                 <td class="py-3 px-3 text-right whitespace-nowrap">
+                  <a href="{{ url_for('edit_record', record_id=r.record_id) }}"
+                     class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold text-[11px] inline-flex items-center gap-1 transition-colors">
+                    <span class="material-symbols-outlined text-xs">edit</span>
+                    <span>Edit</span>
+                  </a>
                   <a href="{{ url_for('reading_advice', record_id=r.record_id) }}"
                      class="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 font-semibold text-[11px] inline-flex items-center gap-1 transition-colors">
                     <span class="material-symbols-outlined text-xs">auto_awesome</span>

@@ -81,6 +81,8 @@
                 <td class="py-3.5 px-4 text-on-surface-variant max-w-xs">{{ record.get_notes() or "—" }}</td>
                 <td class="py-3.5 px-4 text-right whitespace-nowrap">
                   <div class="flex items-center justify-end gap-2">
+                    <a href="{{ url_for('edit_record', record_id=record.record_id) }}"
+                       class="text-primary hover:underline text-xs font-semibold p-1">Edit</a>
                     <a href="{{ url_for('reading_advice', record_id=record.record_id) }}"
                        class="px-2 py-1 rounded bg-surface-container-high text-primary hover:bg-primary hover:text-white transition-colors text-xs font-semibold inline-flex items-center gap-1">
                       <span class="material-symbols-outlined text-sm">psychology</span>

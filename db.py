@@ -214,6 +214,49 @@ def create_record(person_id, systolic, diastolic, pulse_rate, notes, date_val, t
     return payload
 
 
+def update_record(record_id, person_id, systolic, diastolic, pulse_rate, notes, date_val, time_val):
+    payload = {
+        "systolic": int(systolic),
+        "diastolic": int(diastolic),
+        "pulse_rate": str(pulse_rate) if pulse_rate is not None else "N/A",
+        "notes": notes or "",
+        "date": date_val.isoformat() if hasattr(date_val, "isoformat") else str(date_val),
+        "time": time_val.strftime("%H:%M:%S") if hasattr(time_val, "strftime") else str(time_val),
+    }
+
+    if use_supabase and supabase:
+        try:
+            res = (supabase.table("records").update(payload)
+                   .eq("id", int(record_id))
+                   .eq("person_id", int(person_id))
+                   .select("id").execute())
+            if res.data:
+                return True
+        except Exception:
+            pass
+
+    all_recs = store.load_all_records()
+    record = next(
+        (
+            r for r in all_recs
+            if r.record_id == int(record_id) and r.person_id == int(person_id)
+        ),
+        None,
+    )
+    if not record:
+        return False
+
+    record.systolic = int(systolic)
+    record.diastolic = int(diastolic)
+    record.pulse_rate = pulse_rate if pulse_rate in ("N/A", None) else int(pulse_rate)
+    record.notes = notes or ""
+    record.record_date = date_val if isinstance(date_val, date) else date.fromisoformat(str(date_val))
+    record.record_time = time_val if isinstance(time_val, time) else datetime.strptime(str(time_val)[:5], "%H:%M").time()
+    person_records = [r for r in all_recs if r.person_id == int(person_id)]
+    store.save_user_records([int(person_id)], person_records)
+    return True
+
+
 def delete_record(record_id, person_id=None):
     if use_supabase and supabase:
         try:
@@ -344,4 +387,3 @@ def toggle_medication(med_id):
 
 def delete_medication(med_id):
     return store.delete_medication(med_id)
-

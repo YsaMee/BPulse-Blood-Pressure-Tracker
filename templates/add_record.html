@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Add Record{% endblock %}
+{% block title %}{{ "Edit Record" if editing_record else "Add Record" }}{% endblock %}
 
 {% block content %}
 <div class="flex flex-col gap-6 w-full max-w-[1440px] mx-auto">
   <div>
-    <h1 class="font-headline-lg text-on-surface font-bold">Add Blood Pressure Record</h1>
+    <h1 class="font-headline-lg text-on-surface font-bold">{{ "Edit Blood Pressure Record" if editing_record else "Add Blood Pressure Record" }}</h1>
     <p class="font-body-md text-on-surface-variant mt-1">
-      Log a verified systolic/diastolic measurement with AHA classification and AI clinical suggestions.
+    {% if editing_record %}Update the saved measurement details below.{% else %}Log a verified systolic/diastolic measurement with AHA classification and AI clinical suggestions.{% endif %}
     </p>
   </div>
 
-  <form method="POST" action="{{ url_for('add_record', person_id=selected_person.person_id if selected_person else none) }}"
+  <form method="POST" action="{{ url_for('edit_record', record_id=editing_record.record_id) if editing_record else url_for('add_record', person_id=selected_person.person_id if selected_person else none) }}"
         class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
     <!-- LEFT: FORM -->
@@ -23,6 +23,7 @@
           <div class="md:col-span-2">
             <label class="font-label-md text-on-surface block mb-1.5 font-semibold">Patient Name *</label>
             <input list="existing_people" name="person_name" required
+                   {% if editing_record %}readonly{% endif %}
                    placeholder="e.g. John Doe"
                        value="{{ selected_person.get_name() if selected_person else '' }}"
                    class="w-full bg-surface-container-low rounded-xl py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-primary text-sm font-medium"/>
@@ -37,12 +38,14 @@
           <div>
             <label class="font-label-md text-on-surface block mb-1.5 font-semibold">Date *</label>
             <input type="date" name="record_date" required id="record_date"
+                   value="{{ editing_record.get_date().isoformat() if editing_record else '' }}"
                    class="w-full bg-surface-container-low rounded-xl py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-primary text-sm font-medium"/>
           </div>
 
           <div>
             <label class="font-label-md text-on-surface block mb-1.5 font-semibold">Time *</label>
             <input type="time" name="record_time" required id="record_time"
+                   value="{{ editing_record.get_time().strftime('%H:%M') if editing_record else '' }}"
                    class="w-full bg-surface-container-low rounded-xl py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-primary text-sm font-medium"/>
           </div>
         </div>
@@ -54,14 +57,14 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="bg-surface-container-low p-4 rounded-xl text-center">
             <label class="font-label-md text-on-surface font-bold block mb-2">Systolic (SYS) mmHg</label>
-            <input type="number" name="systolic" min="50" max="280" value="120" required
+            <input type="number" name="systolic" min="50" max="280" value="{{ editing_record.get_systolic() if editing_record else 120 }}" required
                    class="w-full text-center bg-surface-container-lowest rounded-xl py-3 font-headline-lg font-bold text-primary focus:outline-none focus:ring-2 focus:ring-primary"/>
             <p class="font-label-sm text-on-surface-variant mt-2 text-xs">AHA Target: &lt; 120 mmHg</p>
           </div>
 
           <div class="bg-surface-container-low p-4 rounded-xl text-center">
             <label class="font-label-md text-on-surface font-bold block mb-2">Diastolic (DIA) mmHg</label>
-            <input type="number" name="diastolic" min="30" max="180" value="80" required
+            <input type="number" name="diastolic" min="30" max="180" value="{{ editing_record.get_diastolic() if editing_record else 80 }}" required
                    class="w-full text-center bg-surface-container-lowest rounded-xl py-3 font-headline-lg font-bold text-secondary focus:outline-none focus:ring-2 focus:ring-primary"/>
             <p class="font-label-sm text-on-surface-variant mt-2 text-xs">AHA Target: &lt; 80 mmHg</p>
           </div>
@@ -72,7 +75,7 @@
             <label class="font-label-md text-on-surface font-bold block">Heart Rate / Pulse (bpm)</label>
             <span class="font-label-sm text-on-surface-variant text-xs">Resting heart rate</span>
           </div>
-          <input type="number" name="pulse" min="30" max="240" value="72"
+          <input type="number" name="pulse" min="30" max="240" value="{{ editing_record.get_pulse_rate() if editing_record and editing_record.get_pulse_rate() != 'N/A' else ('' if editing_record else 72) }}"
                  class="w-28 bg-surface-container-lowest rounded-xl py-2 px-3 text-center font-headline-md font-bold focus:outline-none focus:ring-2 focus:ring-primary"/>
         </div>
       </section>
@@ -80,18 +83,18 @@
       <section class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/40">
         <h2 class="font-headline-sm text-on-surface font-bold mb-3">Context &amp; Clinical Notes</h2>
         <textarea name="notes" rows="2" placeholder="e.g., Morning check before coffee, post 30-min walk, feeling relaxed..."
-                  class="w-full bg-surface-container-low rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-primary text-sm"></textarea>
+                  class="w-full bg-surface-container-low rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-primary text-sm">{{ editing_record.get_notes() if editing_record else '' }}</textarea>
       </section>
 
       <div class="flex items-center justify-end gap-3">
-        <a href="{{ url_for('dashboard', person_id=selected_person.person_id if selected_person else none) }}"
+        <a href="{{ url_for('history', person_id=selected_person.person_id) if editing_record else url_for('dashboard', person_id=selected_person.person_id if selected_person else none) }}"
            class="px-5 py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high font-label-md transition-colors text-xs font-semibold">
           Cancel
         </a>
         <button type="submit"
                 class="px-7 py-2.5 rounded-xl bg-primary-container text-on-primary font-label-md hover:bg-primary shadow-sm flex items-center gap-1.5 text-xs font-bold transition-all">
-          <span class="material-symbols-outlined text-base">check_circle</span>
-          <span>Save Reading &amp; Request Advice</span>
+          <span class="material-symbols-outlined text-base">{{ "save" if editing_record else "check_circle" }}</span>
+          <span>{{ "Save Changes" if editing_record else "Save Reading &amp; Request Advice" }}</span>
         </button>
       </div>
     </div>

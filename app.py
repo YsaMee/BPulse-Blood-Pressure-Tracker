@@ -6,7 +6,7 @@ from functools import wraps
 
 from flask import (
     Flask, render_template, request, redirect,
-    url_for, session, flash, send_file, jsonify
+    url_for, session, flash, send_file, jsonify, abort
 )
 from dotenv import load_dotenv
 
@@ -482,6 +482,77 @@ def delete_record(record_id):
     db.delete_record(record_id, person_id=person_id)
     flash("Record deleted.", "success")
     return redirect(url_for("history", person_id=person_id))
+
+
+@app.route("/history/edit/<int:record_id>", methods=["GET", "POST"])
+@login_required
+def edit_record(record_id):
+    uid = user_id()
+    record_row = next(
+        (
+            row for row in db.get_records_for_user(uid)
+            if int(row.get("id") or row.get("record_id", 0)) == record_id
+        ),
+        None,
+    )
+    if not record_row:
+        abort(404)
+
+    record = db.row_to_record(record_row)
+    people = db.get_people_objects(uid)
+    person = next((p for p in people if p.person_id == record.person_id), None)
+    if not person:
+        abort(404)
+
+    if request.method == "POST":
+        try:
+            systolic = int(request.form.get("systolic", ""))
+            diastolic = int(request.form.get("diastolic", ""))
+            pulse_input = request.form.get("pulse", "").strip()
+            pulse = int(pulse_input) if pulse_input else "N/A"
+            record_date = datetime.strptime(
+                request.form.get("record_date", ""), "%Y-%m-%d"
+            ).date()
+            record_time = datetime.strptime(
+                request.form.get("record_time", ""), "%H:%M"
+            ).time()
+        except ValueError:
+            flash("Enter valid numbers, date, and time for this reading.", "error")
+            return redirect(url_for("edit_record", record_id=record_id))
+
+        if not 50 <= systolic <= 280 or not 30 <= diastolic <= 180:
+            flash("Blood pressure values are outside the allowed range.", "error")
+            return redirect(url_for("edit_record", record_id=record_id))
+        if pulse != "N/A" and not 30 <= pulse <= 240:
+            flash("Pulse must be between 30 and 240 bpm.", "error")
+            return redirect(url_for("edit_record", record_id=record_id))
+
+        updated = db.update_record(
+            record_id=record_id,
+            person_id=record.person_id,
+            systolic=systolic,
+            diastolic=diastolic,
+            pulse_rate=pulse,
+            notes=request.form.get("notes", "").strip(),
+            date_val=record_date,
+            time_val=record_time,
+        )
+        if not updated:
+            flash("Could not update this reading. Please try again.", "error")
+            return redirect(url_for("edit_record", record_id=record_id))
+
+        advice_cache.invalidate_record(record_id)
+        flash("Reading updated successfully.", "success")
+        return redirect(url_for("history", person_id=record.person_id))
+
+    return render_template(
+        "add_record.html",
+        user=current_user(),
+        people=people,
+        selected_person=person,
+        editing_record=record,
+        page="history",
+    )
 
 
 # ==========================================
