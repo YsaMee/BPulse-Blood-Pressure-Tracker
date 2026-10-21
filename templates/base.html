@@ -99,6 +99,18 @@
           </span>
         </a>
 
+        <!-- AI Health Advisor (with Gemini badge) -->
+        <a href="{{ url_for('dashboard', person_id=active_person_id) }}#advisor-section"
+          class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
+         <div class="flex items-center gap-3">
+           <span class="material-symbols-outlined text-base text-slate-400">auto_awesome</span>
+           <span>AI Health Advisor</span>
+         </div>
+         <span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-indigo-950 text-indigo-300 border border-indigo-800/60">
+           Gemini
+         </span>
+        </a>
+
         <!-- History & Logs -->
         {% set isHist = (page == 'history') %}
         <a href="{{ url_for('history', person_id=active_person_id) }}"
@@ -106,18 +118,6 @@
                   {% if isHist %}bg-sky-600 text-white shadow-sm{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/60{% endif %}">
           <span class="material-symbols-outlined text-base {% if isHist %}text-white{% else %}text-slate-400{% endif %}">history</span>
           <span>History &amp; Logs</span>
-        </a>
-
-        <!-- AI Health Advisor (with Gemini badge) -->
-        <a href="{{ url_for('dashboard', person_id=active_person_id) }}#advisor-section"
-           class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all">
-          <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-base text-slate-400">auto_awesome</span>
-            <span>AI Health Advisor</span>
-          </div>
-          <span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-indigo-950 text-indigo-300 border border-indigo-800/60">
-            Gemini
-          </span>
         </a>
 
         <!-- Manage Patients -->
