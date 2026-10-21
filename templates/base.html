@@ -133,12 +133,6 @@
 
     <!-- Bottom Sidebar Info Card (AHA Guideline 2026) -->
     <div class="p-4 border-t border-slate-800/80">
-      <button type="button" onclick="openEmergencyHelp()"
-              class="w-full mb-3 flex items-center justify-center gap-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white px-3 py-2.5 text-xs font-bold shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-rose-300"
-              aria-haspopup="dialog" aria-controls="emergency-help-dialog">
-        <span class="material-symbols-outlined text-base">emergency</span>
-        <span>Emergency Help</span>
-      </button>
       <div class="p-3 rounded-xl bg-slate-800/50 border border-slate-700/60 text-xs">
         <div class="flex items-center gap-2 text-slate-200 font-semibold mb-1">
           <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
@@ -342,75 +336,6 @@
     </main>
 
   </div>
-
-  {% if user %}
-    <button type="button" onclick="openEmergencyHelp()"
-            class="md:hidden fixed bottom-6 left-4 sm:left-6 z-50 flex items-center gap-2 rounded-full bg-rose-700 hover:bg-rose-800 text-white px-4 py-3 text-xs font-bold shadow-xl border border-white/30 transition-colors focus:outline-none focus:ring-2 focus:ring-rose-300"
-            aria-haspopup="dialog" aria-controls="emergency-help-dialog">
-      <span class="material-symbols-outlined text-base">emergency</span>
-      <span>Emergency Help</span>
-    </button>
-
-    <div id="emergency-help-dialog" class="hidden fixed inset-0 z-[70] items-center justify-center bg-slate-950/60 p-4"
-         role="dialog" aria-modal="true" aria-labelledby="emergency-help-title">
-      <section class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl border border-rose-200">
-        <div class="flex items-start gap-3">
-          <span class="material-symbols-outlined text-rose-700 text-2xl" aria-hidden="true">emergency</span>
-          <div>
-            <h2 id="emergency-help-title" class="text-lg font-extrabold text-slate-900">Emergency Help</h2>
-            <p class="mt-2 text-sm leading-relaxed text-slate-700">
-              If someone has severe chest pain, trouble breathing, faints, has sudden weakness or confusion, or may be in immediate danger, call emergency services now. Do not wait for this app.
-            </p>
-            <p class="mt-2 text-sm leading-relaxed text-slate-700">
-              BPulse is not an emergency service and cannot contact anyone for you. Do not change or take extra medication based only on this app.
-            </p>
-          </div>
-        </div>
-        <div class="mt-5 flex flex-wrap justify-end gap-2">
-          <button type="button" onclick="closeEmergencyHelp()"
-                  class="rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-            Close
-          </button>
-          <a href="tel:911"
-             class="inline-flex items-center gap-1.5 rounded-xl bg-rose-700 px-4 py-2 text-sm font-bold text-white hover:bg-rose-800">
-            <span class="material-symbols-outlined text-base" aria-hidden="true">call</span>
-            Call 911
-          </a>
-        </div>
-      </section>
-    </div>
-  {% endif %}
-
-  {% if user %}
-    <script>
-      const emergencyHelpDialog = document.getElementById('emergency-help-dialog');
-      let emergencyHelpOpener = null;
-
-      function openEmergencyHelp() {
-        if (!emergencyHelpDialog) return;
-        emergencyHelpOpener = document.activeElement;
-        emergencyHelpDialog.classList.remove('hidden');
-        emergencyHelpDialog.classList.add('flex');
-        emergencyHelpDialog.querySelector('a[href="tel:911"]').focus();
-      }
-
-      function closeEmergencyHelp() {
-        if (!emergencyHelpDialog) return;
-        emergencyHelpDialog.classList.add('hidden');
-        emergencyHelpDialog.classList.remove('flex');
-        if (emergencyHelpOpener) emergencyHelpOpener.focus();
-      }
-
-      emergencyHelpDialog.addEventListener('click', function (event) {
-        if (event.target === emergencyHelpDialog) closeEmergencyHelp();
-      });
-      document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape' && !emergencyHelpDialog.classList.contains('hidden')) {
-          closeEmergencyHelp();
-        }
-      });
-    </script>
-  {% endif %}
 
   {% if user and curr_p %}
     <script>
