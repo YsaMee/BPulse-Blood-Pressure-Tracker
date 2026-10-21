@@ -394,9 +394,24 @@
           <label class="font-bold text-slate-700 block mb-1">Dose Amount *</label>
           <input name="dosage" type="text" required placeholder="e.g. 5 mL"
                  class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+          <p class="mt-1 text-[10px] text-slate-500">How much is taken each time.</p>
         </div>
 
         <div class="sm:col-span-3">
+          <label class="font-bold text-slate-700 block mb-1">Strength (optional)</label>
+          <input name="strength" type="text" placeholder="e.g. 100 mg per 5 mL"
+                 class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+          <p class="mt-1 text-[10px] text-slate-500">Medicine amount in a tablet or measured liquid.</p>
+        </div>
+
+        <div class="sm:col-span-3">
+          <label class="font-bold text-slate-700 block mb-1">Medicine Form (optional)</label>
+          <input name="form" type="text" placeholder="e.g. tablet, capsule, liquid"
+                 class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+          <p class="mt-1 text-[10px] text-slate-500">What it looks like or how it is taken.</p>
+        </div>
+
+        <div class="sm:col-span-2">
           <label class="font-bold text-slate-700 block mb-1">Dose Schedule</label>
           <select name="schedule_type" id="medicationScheduleType" onchange="updateMedicationScheduleFields(this.value)"
                   class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500">
@@ -405,7 +420,7 @@
           </select>
         </div>
 
-        <div class="sm:col-span-3" id="dosesPerDayField">
+        <div class="sm:col-span-2" id="dosesPerDayField">
           <label class="font-bold text-slate-700 block mb-1">Doses per day</label>
           <input name="doses_per_day" id="medicationDosesPerDay" type="number" min="1" max="24" value="1" required
                  class="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
@@ -454,6 +469,13 @@
                         {{ med.dosage }} / dose
                       </span>
                     </h4>
+                    {% if med.strength or med.form %}
+                      <span class="text-[10px] text-slate-500 block mt-0.5">
+                        {% if med.strength %}Strength: {{ med.strength }}{% endif %}
+                        {% if med.strength and med.form %} &bull; {% endif %}
+                        {% if med.form %}Form: {{ med.form }}{% endif %}
+                      </span>
+                    {% endif %}
                     <span class="text-[11px] text-slate-500 block">
                       {% if med.is_scheduled %}{{ med.doses_per_day }} scheduled dose{% if med.doses_per_day != 1 %}s{% endif %} per day{% else %}As needed{% endif %}
                       &bull; {{ med.time_of_day }}

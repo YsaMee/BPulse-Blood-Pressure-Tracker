@@ -414,6 +414,8 @@ def add_medication(
     instructions="",
     doses_per_day=1,
     schedule_type="scheduled",
+    strength="",
+    medication_form="",
 ):
     return store.add_medication(
         person_id,
@@ -424,6 +426,8 @@ def add_medication(
         instructions,
         doses_per_day,
         schedule_type,
+        strength,
+        medication_form,
     )
 
 

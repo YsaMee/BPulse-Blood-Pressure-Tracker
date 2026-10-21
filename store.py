@@ -111,6 +111,8 @@ def add_medication(
     instructions="",
     doses_per_day=1,
     schedule_type="scheduled",
+    strength="",
+    medication_form="",
 ):
     meds = load_all_medications()
     new_id = max([m.get("id", 0) for m in meds], default=0) + 1
@@ -120,6 +122,8 @@ def add_medication(
         "person_id": int(person_id) if str(person_id).isdigit() else 1,
         "name": name.strip(),
         "dosage": dosage.strip() or "Standard dose",
+        "strength": strength.strip(),
+        "form": medication_form.strip(),
         "frequency": frequency.strip() or ("Once daily" if is_scheduled else "As needed (PRN)"),
         "schedule_type": "scheduled" if is_scheduled else "as_needed",
         "doses_per_day": max(1, int(doses_per_day)) if is_scheduled else 0,

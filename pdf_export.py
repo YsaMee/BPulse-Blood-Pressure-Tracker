@@ -138,9 +138,14 @@ def build_patient_pdf(
             taken_at = medication.get("taken_at")
             if doses_taken and taken_at:
                 status += f" ({taken_at})"
+            dose_details = f"Dose: {medication.get('dosage', '')}"
+            if medication.get("strength"):
+                dose_details += f" | Strength: {medication['strength']}"
+            if medication.get("form"):
+                dose_details += f" | Form: {medication['form']}"
             medication_data.append([
                 _p(medication.get("name", ""), cell),
-                _p(medication.get("dosage", ""), cell),
+                _p(dose_details, cell),
                 _p(
                     f"{medication.get('frequency', '')} / {medication.get('time_of_day', '')}",
                     cell,

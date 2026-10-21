@@ -275,7 +275,14 @@ def chat_with_bpal(
     else:
         history_str = "Single reading logged so far."
 
-    meds_list = [f"{m.get('name')} {m.get('dosage')} ({m.get('frequency')})" for m in (medications or [])]
+    meds_list = []
+    for medication in medications or []:
+        details = f"{medication.get('name')} {medication.get('dosage')} ({medication.get('frequency')})"
+        if medication.get("strength"):
+            details += f", strength {medication['strength']}"
+        if medication.get("form"):
+            details += f", form {medication['form']}"
+        meds_list.append(details)
     meds_str = ", ".join(meds_list) if meds_list else "None currently registered."
 
     prompt_context = f"""[Patient Profile & Live Vitals]

@@ -409,6 +409,8 @@ def medication_add():
     person_id = request.form.get("person_id") or 1
     name = request.form.get("name", "").strip()
     dosage = request.form.get("dosage", "10mg").strip()
+    strength = request.form.get("strength", "").strip()
+    medication_form = request.form.get("form", "").strip()
     schedule_type = request.form.get("schedule_type", "scheduled")
     time_of_day = request.form.get("time_of_day", "Morning (08:00 AM)").strip()
     instructions = request.form.get("instructions", "").strip()
@@ -446,6 +448,8 @@ def medication_add():
         instructions,
         doses_per_day,
         schedule_type,
+        strength,
+        medication_form,
     )
     flash(f"Medication '{name} {dosage}' added to schedule.", "success")
     return redirect(url_for("dashboard", person_id=person_id))
