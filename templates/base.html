@@ -177,26 +177,11 @@
 
       <div class="flex items-center gap-2 sm:gap-3">
         {% if curr_p %}
-          <div class="flex items-center gap-1.5" aria-label="Export patient data">
-            <span class="hidden sm:inline text-xs font-semibold text-slate-500">Export</span>
-            <form method="GET" action="{{ url_for('patient_pdf', person_id=curr_p.person_id) }}" class="flex items-center gap-1">
-              <label class="sr-only" for="export-months">PDF month range</label>
-              <input id="export-months" type="number" name="months" min="1" max="12" value="1"
-                     title="Months included in PDF"
-                     class="w-14 rounded-lg border border-slate-300 px-2 py-1.5 text-xs text-center"/>
-              <button type="submit" title="Export as PDF" aria-label="Export as PDF"
-                      class="flex items-center gap-1 px-2 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold">
-                <span class="material-symbols-outlined text-base text-rose-600">picture_as_pdf</span>
-                <span class="hidden sm:inline">PDF</span>
-              </button>
-            </form>
-            <a href="{{ url_for('patient_csv', person_id=curr_p.person_id, period='all') }}"
-               title="Export as CSV" aria-label="Export as CSV"
-               class="flex items-center gap-1 px-2 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold">
-              <span class="material-symbols-outlined text-base text-emerald-700">table_view</span>
-              <span class="hidden sm:inline">CSV</span>
-            </a>
-          </div>
+          <button type="button" onclick="openExportModal()"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors">
+            <span class="material-symbols-outlined text-base text-sky-700">download</span>
+            <span>Export</span>
+          </button>
         {% endif %}
 
         <a href="{{ url_for('add_record', person_id=active_person_id) }}"
@@ -212,6 +197,119 @@
         </a>
       </div>
     </header>
+    {% endif %}
+
+    {% if user and curr_p %}
+      <div id="export-modal"
+           data-pdf-url="{{ url_for('patient_pdf', person_id=curr_p.person_id) }}"
+           data-csv-url="{{ url_for('patient_csv', person_id=curr_p.person_id, period='all') }}"
+           data-preview-url="{{ url_for('patient_export_preview', person_id=curr_p.person_id) }}"
+           class="hidden fixed inset-0 z-50 items-center justify-center bg-slate-950/50 p-4"
+           onclick="if (event.target === this) closeExportModal()">
+        <section role="dialog" aria-modal="true" aria-labelledby="export-modal-title"
+                 class="w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto bg-white rounded-2xl shadow-2xl border border-slate-200">
+          <div class="sticky top-0 z-10 bg-gradient-to-r from-slate-900 to-sky-950 text-white px-4 py-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-sky-600/30 text-sky-300 flex items-center justify-center">
+                <span class="material-symbols-outlined">download</span>
+              </div>
+              <div>
+                <h2 id="export-modal-title" class="font-bold text-sm">Export Health Records</h2>
+                <p class="text-[11px] text-slate-300">
+                  Patient: <strong class="text-white">{{ curr_p.get_name() }}</strong>
+                  ({{ curr_p.get_age() }}y)
+                </p>
+              </div>
+            </div>
+            <button type="button" onclick="closeExportModal()" aria-label="Close export window"
+                    class="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10">
+              <span class="material-symbols-outlined text-lg">close</span>
+            </button>
+          </div>
+
+          <div class="p-4 sm:p-5 space-y-4">
+            <fieldset>
+              <legend class="text-[11px] uppercase tracking-wide font-extrabold text-slate-500 mb-2">
+                Choose Export Format *
+              </legend>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="relative flex items-start gap-2.5 p-3 rounded-xl border-2 border-sky-500 bg-sky-50 cursor-pointer">
+                  <input class="sr-only peer" type="radio" name="export-format" value="pdf" checked
+                         onchange="updateExportSelection()"/>
+                  <span class="material-symbols-outlined text-rose-600 text-lg mt-0.5">picture_as_pdf</span>
+                  <span class="min-w-0">
+                    <strong class="block text-xs text-slate-900">PDF Report</strong>
+                    <span class="block text-[10px] text-slate-500 mt-0.5">Clinical report with charts and AHA guidelines.</span>
+                  </span>
+                  <span class="material-symbols-outlined export-selected-mark absolute right-2 top-2 text-sky-600 text-base">check_circle</span>
+                </label>
+                <label class="relative flex items-start gap-2.5 p-3 rounded-xl border-2 border-slate-200 bg-white cursor-pointer">
+                  <input class="sr-only peer" type="radio" name="export-format" value="csv"
+                         onchange="updateExportSelection()"/>
+                  <span class="material-symbols-outlined text-emerald-600 text-lg mt-0.5">table_view</span>
+                  <span class="min-w-0">
+                    <strong class="block text-xs text-slate-900">CSV Spreadsheet</strong>
+                    <span class="block text-[10px] text-slate-500 mt-0.5">Raw data table for Excel, Sheets, or EHR.</span>
+                  </span>
+                  <span class="material-symbols-outlined export-selected-mark hidden absolute right-2 top-2 text-sky-600 text-base">check_circle</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <div id="export-range-section">
+              <div class="flex items-center justify-between mb-2">
+                <label for="export-month-range" class="text-[11px] uppercase tracking-wide font-extrabold text-slate-500">
+                  Month Range Option *
+                </label>
+                <span class="text-[10px] font-bold text-sky-700 bg-sky-50 border border-sky-100 rounded px-2 py-0.5">
+                  Default: 1 Month
+                </span>
+              </div>
+              <select id="export-month-range" onchange="updateExportSelection()"
+                      class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                <option value="1" selected>1 Month (Last 30 Days) — Recommended</option>
+                <option value="2">2 Months</option>
+                <option value="3">3 Months</option>
+                <option value="6">6 Months</option>
+                <option value="12">12 Months</option>
+              </select>
+            </div>
+
+            <div class="rounded-xl bg-slate-50 border border-slate-200 p-3.5 space-y-2 text-xs">
+              <div class="flex justify-between gap-3">
+                <span class="text-slate-500">Timeframe:</span>
+                <strong id="export-preview-timeframe" class="text-right text-slate-800">Loading...</strong>
+              </div>
+              <div class="flex justify-between gap-3">
+                <span class="text-slate-500">Readings Included:</span>
+                <strong id="export-preview-readings" class="text-slate-800">—</strong>
+              </div>
+              <div class="flex justify-between gap-3">
+                <span class="text-slate-500">Average BP:</span>
+                <strong id="export-preview-average" class="text-sky-700">—</strong>
+              </div>
+              <p id="export-preview-error" class="hidden text-rose-700 text-[11px]" role="alert"></p>
+            </div>
+
+            <label id="export-advice-option" class="flex items-start gap-2 text-[11px] text-slate-600 font-semibold cursor-pointer">
+              <input id="export-include-advice" type="checkbox" checked class="mt-0.5 accent-sky-600"/>
+              <span>Include AI Health Advisor insights &amp; recommendations</span>
+            </label>
+          </div>
+
+          <div class="sticky bottom-0 bg-white border-t border-slate-100 px-4 py-3 flex items-center justify-end gap-2">
+            <button type="button" onclick="closeExportModal()"
+                    class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">
+              Cancel
+            </button>
+            <button id="export-download-button" type="button" onclick="downloadExport()"
+                    class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-700 hover:bg-sky-800 text-white text-xs font-bold shadow-xs">
+              <span class="material-symbols-outlined text-base">download</span>
+              <span id="export-download-label">Download PDF (Last 1 Month)</span>
+            </button>
+          </div>
+        </section>
+      </div>
     {% endif %}
 
     <!-- Page Content Container -->
@@ -238,6 +336,107 @@
     </main>
 
   </div>
+
+  {% if user and curr_p %}
+    <script>
+      const exportModal = document.getElementById('export-modal');
+      const exportFormatInputs = Array.from(document.querySelectorAll('input[name="export-format"]'));
+      const exportMonthRange = document.getElementById('export-month-range');
+      const exportPreviewSequence = { value: 0 };
+      let exportOpener = null;
+
+      function selectedExportFormat() {
+        return exportFormatInputs.find(function (input) { return input.checked; }).value;
+      }
+
+      function openExportModal() {
+        exportOpener = document.activeElement;
+        exportModal.classList.remove('hidden');
+        exportModal.classList.add('flex');
+        document.body.classList.add('overflow-hidden');
+        document.querySelector('#export-modal button[aria-label="Close export window"]').focus();
+        updateExportSelection();
+      }
+
+      function closeExportModal() {
+        exportModal.classList.add('hidden');
+        exportModal.classList.remove('flex');
+        document.body.classList.remove('overflow-hidden');
+        if (exportOpener) exportOpener.focus();
+      }
+
+      function updateExportSelection() {
+        const format = selectedExportFormat();
+        exportFormatInputs.forEach(function (input) {
+          const label = input.closest('label');
+          label.classList.toggle('border-sky-500', input.checked);
+          label.classList.toggle('bg-sky-50', input.checked);
+          label.classList.toggle('border-slate-200', !input.checked);
+          label.classList.toggle('bg-white', !input.checked);
+          label.querySelector('.export-selected-mark').classList.toggle('hidden', !input.checked);
+        });
+        const isPdf = format === 'pdf';
+        document.getElementById('export-range-section').classList.toggle('hidden', !isPdf);
+        document.getElementById('export-advice-option').classList.toggle('hidden', !isPdf);
+        document.getElementById('export-download-label').textContent = isPdf
+          ? 'Download PDF (Last ' + exportMonthRange.value + ' Month' + (exportMonthRange.value === '1' ? '' : 's') + ')'
+          : 'Download CSV (All Records)';
+        loadExportPreview();
+      }
+
+      async function loadExportPreview() {
+        const requestSequence = ++exportPreviewSequence.value;
+        const format = selectedExportFormat();
+        const range = format === 'csv' ? 'all' : exportMonthRange.value;
+        const previewUrl = new URL(exportModal.dataset.previewUrl, window.location.origin);
+        previewUrl.searchParams.set('months', range);
+        const error = document.getElementById('export-preview-error');
+        error.classList.add('hidden');
+        document.getElementById('export-preview-timeframe').textContent = 'Loading...';
+
+        try {
+          const response = await fetch(previewUrl, { headers: { 'Accept': 'application/json' } });
+          if (!response.ok) throw new Error('Preview request returned ' + response.status);
+          const preview = await response.json();
+          if (requestSequence !== exportPreviewSequence.value) return;
+          document.getElementById('export-preview-timeframe').textContent = preview.timeframe;
+          document.getElementById('export-preview-readings').textContent = preview.readings + ' readings';
+          document.getElementById('export-preview-average').textContent = preview.average_bp;
+        } catch (previewError) {
+          if (requestSequence !== exportPreviewSequence.value) return;
+          document.getElementById('export-preview-timeframe').textContent = 'Unavailable';
+          document.getElementById('export-preview-readings').textContent = '—';
+          document.getElementById('export-preview-average').textContent = '—';
+          error.textContent = 'Could not load export preview. You can still download your records.';
+          error.classList.remove('hidden');
+          console.error('Could not load export preview:', previewError);
+        }
+      }
+
+      function downloadExport() {
+        const format = selectedExportFormat();
+        const url = new URL(
+          format === 'pdf' ? exportModal.dataset.pdfUrl : exportModal.dataset.csvUrl,
+          window.location.origin
+        );
+        if (format === 'pdf') {
+          url.searchParams.set('months', exportMonthRange.value);
+          url.searchParams.set(
+            'include_advice',
+            document.getElementById('export-include-advice').checked ? '1' : '0'
+          );
+        }
+        window.location.assign(url);
+        closeExportModal();
+      }
+
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !exportModal.classList.contains('hidden')) {
+          closeExportModal();
+        }
+      });
+    </script>
+  {% endif %}
 
 </body>
 </html>

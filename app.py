@@ -107,6 +107,18 @@ def _patient_id_from_search(value):
     return int(match.group(1)) if match else None
 
 
+def _month_range_cutoff(months):
+    today = date.today()
+    month_index = today.year * 12 + today.month - 1 - months
+    cutoff_year, zero_based_month = divmod(month_index, 12)
+    cutoff_month = zero_based_month + 1
+    return date(
+        cutoff_year,
+        cutoff_month,
+        min(today.day, calendar.monthrange(cutoff_year, cutoff_month)[1]),
+    )
+
+
 # ==========================================
 # AUTH ROUTES
 # ==========================================
@@ -919,15 +931,7 @@ def patient_pdf(person_id):
     else:
         months = request.args.get("months", default=1, type=int)
         months = min(max(months or 1, 1), 12)
-        today = date.today()
-        month_index = today.year * 12 + today.month - 1 - months
-        cutoff_year, zero_based_month = divmod(month_index, 12)
-        cutoff_month = zero_based_month + 1
-        cutoff = date(
-            cutoff_year,
-            cutoff_month,
-            min(today.day, calendar.monthrange(cutoff_year, cutoff_month)[1]),
-        )
+        cutoff = _month_range_cutoff(months)
         records = _filtered_records(person_id, "all")
         records = [
             record for record in records
@@ -935,8 +939,20 @@ def patient_pdf(person_id):
         ]
         timeframe_label = f"Last {months} month{'s' if months != 1 else ''}"
 
-    # Optional advice
-    advice = session.get("last_advice")
+    advice = None
+    if request.args.get("include_advice") != "0":
+        if session.get("last_advice_person") == person.get_name():
+            advice = session.get("last_advice")
+        if not advice and records:
+            latest = records[-1]
+            advice = ai_advisor.get_health_advice(
+                systolic=latest.get_systolic(),
+                diastolic=latest.get_diastolic(),
+                pulse=latest.get_pulse_rate(),
+                category=latest.get_bp_category(),
+                notes=latest.get_notes(),
+                recent_history=records[-8:],
+            )
     medications = db.get_medications_for_person(person_id)
 
     buffer = pdf_export.build_patient_pdf(
@@ -983,6 +999,39 @@ def patient_csv(person_id):
         as_attachment=True,
         download_name=filename,
     )
+
+
+@app.route("/patient/<int:person_id>/export-preview")
+@login_required
+def patient_export_preview(person_id):
+    people = db.get_people_objects(user_id())
+    if not any(person.person_id == person_id for person in people):
+        abort(404)
+
+    range_value = request.args.get("months", "1")
+    if range_value == "all":
+        records = _filtered_records(person_id, "all")
+        timeframe = "All Historical Records"
+    else:
+        months = min(max(request.args.get("months", default=1, type=int) or 1, 1), 12)
+        cutoff = _month_range_cutoff(months)
+        records = [
+            record for record in _filtered_records(person_id, "all")
+            if getattr(record, "record_date", getattr(record, "date", date.today())) >= cutoff
+        ]
+        timeframe = f"Last {months} Month{'s' if months != 1 else ''} ({months * 30} Days)"
+
+    average = None
+    if records:
+        average = (
+            round(sum(record.get_systolic() for record in records) / len(records)),
+            round(sum(record.get_diastolic() for record in records) / len(records)),
+        )
+    return jsonify({
+        "timeframe": timeframe,
+        "readings": len(records),
+        "average_bp": f"{average[0]}/{average[1]} mmHg" if average else "—",
+    })
 
 
 @app.route("/patient/search")

@@ -7,7 +7,7 @@ BPulse is a Flask web application for recording and reviewing blood pressure rea
 - Record systolic and diastolic blood pressure, pulse, date, time, and notes.
 - Manage patient profiles with separate first, middle, and last names, editable demographics, and medication schedules.
 - Search patient profiles throughout the app, search reading history across all patients, and view 7-day or 30-day trends.
-- Generate monthly summaries and export patient reports as PDF (with a 1-month default range and medication log) or CSV.
+- Generate monthly summaries and use the unified export window to download a PDF (with selectable month range and medication log) or a CSV, with an option to include matching AI-advisor recommendations in the PDF.
 - Get informational reading suggestions and chat with B-Pal. Without a Gemini API key, the app uses its built-in rule-based advice.
 - Sidebar navigation places AI Health Advisor directly below Medication Tracker.
 - Use local JSON files for development, or configure Supabase for database and authentication services.
